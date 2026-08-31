@@ -1,0 +1,298 @@
+# COGNITIVE PLATFORM - SERVICES CONFIGURATION
+
+services:
+  osint:
+    name: OSINT Collection Service
+    url: ${OSINT_URL:-http://localhost:5001}
+    timeout: ${OSINT_TIMEOUT:-30000}
+    retry: ${OSINT_RETRY:-3}
+    description: |
+      Runs BBOT, sherlock, maigret, theHarvester, snscrape, TGSpyder
+      and crawl pipeline for deep person/entity profiling.
+
+  graph:
+    name: Neo4j Graph Engine
+    url: ${NEO4J_URL:-bolt://localhost:7687}
+    timeout: ${NEO4J_TIMEOUT:-10000}
+    auth:
+      username: ${NEO4J_USER:-neo4j}
+      password: ${NEO4J_PASSWORD:-password}
+    database: ${NEO4J_DATABASE:-neo4j}
+    pool:
+      min: 2
+      max: 10
+    description: |
+      Stores enriched entity graphs, relationships, and topology.
+      Supports Cypher queries and batch imports.
+
+  globe:
+    name: Cesium 3D Globe Service
+    url: ${GLOBE_URL:-http://localhost:8080}
+    timeout: ${GLOBE_TIMEOUT:-30000}
+    websocket: true
+    description: |
+      Real-time 3D visualization with Cesium.js.
+      Subscriptions for aircraft, vessels, satellites, earthquakes, CCTV.
+
+  cache:
+    name: Redis Cache Service
+    backend: ${CACHE_BACKEND:-redis}
+    url: ${REDIS_URL:-redis://localhost:6379}
+    password: ${REDIS_PASSWORD:-}
+    db: ${REDIS_DB:-0}
+    ttl: ${CACHE_TTL:-3600}
+    max_size: ${CACHE_MAX_SIZE:-1000}
+    description: |
+      Hybrid cache: Redis primary, memory fallback.
+      Used for: TLE cache, FIRMS, flight route history, CCTV frames.
+
+  pipeline:
+    name: Data Collection Pipeline
+    url: ${PIPELINE_URL:-http://localhost:5001}
+    port: ${PIPELINE_PORT:-5001}
+    timeout: ${PIPELINE_TIMEOUT:-120000}
+    description: |
+      0-layer OSINT pipeline: collect → extract → enrich → store.
+      Orchestrates theHarvester, BBOT, crawling, regex+spaCy NLP.
+
+  tda:
+    name: Topological Data Analysis Service
+    url: ${TDA_URL:-http://localhost:5002}
+    timeout: ${TDA_TIMEOUT:-60000}
+    description: |
+      Analyzes graph topology: Betti numbers, persistent homology,
+      connected components, fundamental cycles, centrality measures.
+
+data_sources:
+  flights:
+    primary:
+      name: OpenSky Network
+      url: https://opensky-network.org/api/states/all
+      polling_interval: ${OPENSKY_POLL_INTERVAL:-10000}
+      timeout: ${OPENSKY_TIMEOUT:-10000}
+      auth:
+        username: ${OPENSKY_USER:-}
+        password: ${OPENSKY_PASSWORD:-}
+      limit_anonymous: 400  # requests/hour
+      description: |
+        Primary live-flight snapshot. Non-commercial license.
+        Requires registration for higher quota.
+
+    fallback:
+      name: adsb.lol Point API
+      url: https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{radius}
+      polling_interval: ${ADSBLOL_POLL_INTERVAL:-30000}
+      timeout: ${ADSBLOL_TIMEOUT:-10000}
+      description: |
+        Bounded fallback when OpenSky unavailable.
+        ODbL 1.0 license. No auth required.
+
+  military_flights:
+    name: adsb.lol Military
+    url: https://api.adsb.lol/v2/mil
+    polling_interval: ${MILITARY_POLL_INTERVAL:-30000}
+    timeout: ${MILITARY_TIMEOUT:-10000}
+    description: |
+      ADS-B military traffic overlay. ODbL 1.0.
+
+  vessels:
+    name: AISStream.io
+    url: wss://stream.aisstream.io/connect
+    polling_interval: ${AIS_POLL_INTERVAL:-5000}
+    timeout: ${AIS_TIMEOUT:-30000}
+    auth:
+      api_key: ${AISSTREAM_API_KEY:-}
+    description: |
+      Live vessel AIS data. Free beta, no formal ToS.
+
+  satellites:
+    name: CelesTrak TLE
+    url: https://celestrak.org/NORAD/elements/
+    cache_ttl: 86400  # 1 day
+    timeout: ${CELESTRAK_TIMEOUT:-10000}
+    description: |
+      Satellite TLEs for SGP4 propagation.
+      US government data, no license.
+
+  earthquakes:
+    name: USGS Earthquake Hazards
+    url: https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson
+    polling_interval: ${USGS_POLL_INTERVAL:-300000}
+    timeout: ${USGS_TIMEOUT:-10000}
+    description: |
+      Global seismic activity, last 24h. US public domain.
+
+  traffic:
+    name: TomTom Traffic Flow
+    url: https://api.tomtom.com/traffic/services/4/flowSegmentData/relative
+    polling_interval: ${TOMTOM_POLL_INTERVAL:-300000}
+    timeout: ${TOMTOM_TIMEOUT:-10000}
+    auth:
+      api_key: ${TOMTOM_API_KEY:-}
+    description: |
+      Live congestion coloring (optional BYOK).
+      Fallback: approximate simulation without key.
+
+  cctv:
+    cameras:
+      - name: Austin Traffic Cameras
+        url: https://data.austintexas.gov/resource/cw9x-g5ni.json
+        polling_interval: 600000  # 10 min
+        description: City of Austin Open Data
+
+      - name: Caltrans CCTV
+        url: https://cwwp2.dot.ca.gov/data/d{district}/cctv/cctvStatusD{district}.json
+        polling_interval: 600000
+        description: California Department of Transportation
+
+      - name: TfL JamCams
+        url: https://api.tfl.gov.uk/Road/all/Congestion
+        polling_interval: 600000
+        auth:
+          app_key: ${TFL_APP_KEY:-}
+        description: Transport for London Open Data
+
+  radio:
+    name: Radio Browser
+    url: https://www.radio-browser.info/api/stations/search
+    polling_interval: 3600000  # 1 hour
+    timeout: ${RADIO_TIMEOUT:-10000}
+    description: |
+      Geolocated world radio station directory.
+      Public-domain data under PDDL 1.0.
+
+  fires:
+    name: NASA FIRMS (VIIRS/MODIS)
+    url: https://firms.modaps.eosdis.nasa.gov/api/area/csv/{year}/{month}/{day}/{hour}/{min_lon}/{min_lat}/{max_lon}/{max_lat}/1
+    polling_interval: ${FIRMS_POLL_INTERVAL:-1800000}
+    cache_ttl: 1800  # 30 min
+    timeout: ${FIRMS_TIMEOUT:-10000}
+    auth:
+      map_key: ${FIRMS_MAP_KEY:-}
+    description: |
+      Active fire detections. CC0 / US public domain.
+      Three VIIRS NRT sources: NOAA-20, NOAA-21, Suomi-NPP.
+
+  space_missions:
+    name: Launch Library 2
+    url: https://ll.thespacedevs.com/2.3.0/launches/
+    polling_interval: ${LAUNCH_POLL_INTERVAL:-900000}
+    cache_ttl: 900  # 15 min
+    timeout: ${LAUNCH_TIMEOUT:-10000}
+    auth:
+      token: ${LAUNCH_LIBRARY_TOKEN:-}
+    description: |
+      Rolling 30-day launches with payload, stage, recovery detail.
+
+  terrain:
+    name: Re:Earth Terrain (Mapterhorn)
+    url: https://tiles.terrain.re-earth.io/v1/tiles/cesium/
+    timeout: ${TERRAIN_TIMEOUT:-10000}
+    cache_ttl: 86400
+    description: |
+      Quantized-mesh terrain for photoreal rendering.
+      CC BY 4.0; geoid EGM2008 (NGA public domain).
+
+  installations:
+    name: OpenStreetMap Military Installations
+    url: https://overpass-api.de/api/interpreter
+    query: |
+      [out:json];
+      (
+        node["military"~"."]({lat_min},{lon_min},{lat_max},{lon_max});
+        way["military"~"."]({lat_min},{lon_min},{lat_max},{lon_max});
+      );
+      out center;
+    timeout: ${OSM_TIMEOUT:-10000}
+    description: |
+      Viewport-bounded military-site context from OSM.
+      Incomplete by nature, and labeled that way.
+
+  news:
+    primary:
+      name: Google News RSS
+      url: https://news.google.com/rss/search?q={query}&ceid=US:en
+      timeout: ${GOOGLE_NEWS_TIMEOUT:-10000}
+      description: Primary locality-matched headlines
+
+    fallback:
+      name: GDELT Project DOC 2.0
+      url: https://api.gdeltproject.org/api/v2/doc/doc
+      timeout: ${GDELT_TIMEOUT:-10000}
+      description: Fail-soft fallback for location-matched headlines
+
+  weather:
+    name: Open-Meteo
+    url: https://api.open-meteo.com/v1/forecast
+    polling_interval: 600000  # 10 min
+    timeout: ${WEATHER_TIMEOUT:-10000}
+    description: |
+      Current weather for cockpit Local Info.
+      CC BY 4.0 data licence + adjacent-link attribution.
+
+pipeline:
+  stages:
+    collect:
+      timeout: ${PIPELINE_COLLECT_TIMEOUT:-60000}
+      tools:
+        - bbot          # Orchestrator (if installed)
+        - sherlock      # Social media lookup
+        - maigret       # Social media lookup
+        - snscrape      # Twitter scraper
+        - theHarvester  # Email/domain harvester
+        - tgspyder      # Telegram lookup
+        - searxng       # Meta-search fallback
+
+    extract:
+      timeout: ${PIPELINE_EXTRACT_TIMEOUT:-30000}
+      methods:
+        - regex         # Pattern matching
+        - spacy         # NLP entity extraction
+
+    enrich:
+      timeout: ${PIPELINE_ENRICH_TIMEOUT:-120000}
+      enrichers:
+        - bbot
+        - thebigbrother
+        - maigret
+        - social_analyzer
+
+  crawl:
+    max_pages: ${PIPELINE_CRAWL_MAX_PAGES:-12}
+    concurrency: ${PIPELINE_CRAWL_CONCURRENCY:-4}
+    page_timeout: ${PIPELINE_CRAWL_TIMEOUT_MS:-8000}
+    max_images: ${PIPELINE_CRAWL_MAX_IMAGES:-4}
+    max_bytes: 1000000
+    user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) COGNITIVE-Pipeline/0.1
+
+cache:
+  backend: ${CACHE_BACKEND:-redis}
+  redis:
+    url: ${REDIS_URL:-redis://localhost:6379}
+    password: ${REDIS_PASSWORD:-}
+    db: ${REDIS_DB:-0}
+    ttl: ${CACHE_TTL:-3600}
+  memory:
+    max_size: ${CACHE_MAX_SIZE:-1000}
+  strategies:
+    tles: 86400          # 1 day
+    firms: 1800          # 30 min
+    flight_routes: 3600  # 1 hour
+    cctv_frames: 300     # 5 min
+    terrain: 86400       # 1 day
+
+logging:
+  level: ${LOG_LEVEL:-info}
+  format: json
+  outputs:
+    - console
+    - file
+  file:
+    path: ./logs
+    max_size: 100mb
+    max_files: 10
+
+metrics:
+  enabled: true
+  interval: 60000  # 1 min
+  export_to: prometheus
