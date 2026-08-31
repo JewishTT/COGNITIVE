@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="VcsDirectoryMappings">
-    <mapping directory="$PROJECT_DIR$/COGNITIVE" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/flowsint" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/flowsint/thebigbrother-engine" vcs="Git" />
   </component>
