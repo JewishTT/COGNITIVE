@@ -1,0 +1,51 @@
+{
+  "name": "cognitive-frontend",
+  "version": "1.0.0",
+  "description": "COGNITIVE Frontend - Vue 3 + TypeScript",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint frontend/src --ext .vue,.js,.ts",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@tweenjs/tween.js": "^21.0.0",
+    "@vueuse/core": "^10.7.0",
+    "cesium": "^1.108.0",
+    "d3": "^7.8.5",
+    "pinia": "^2.1.7",
+    "three": "^0.159.0",
+    "vue": "^3.4.0",
+    "vue-flow": "^0.1.0",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/test-utils": "^2.4.1",
+    "eslint": "^8.54.0",
+    "eslint-plugin-vue": "^9.18.0",
+    "jsdom": "^23.0.1",
+    "typescript": "^5.3.2",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "vue-tsc": "^1.8.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "vue",
+    "typescript",
+    "osint",
+    "graph",
+    "cognitive",
+    "frontend"
+  ],
+  "author": "JewishTT",
+  "license": "MIT"
+}

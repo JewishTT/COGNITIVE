@@ -1,4 +1,0 @@
-description: Enumerate Git repositories, Docker images, etc.
-
-flags:
-  - code-enum
