@@ -1,0 +1,2006 @@
+import asyncio
+import logging
+import traceback
+from sys import exc_info
+from contextlib import suppress
+
+from ..core.helpers.misc import get_size  # noqa
+from ..errors import ValidationError, WebError
+from ..core.helpers.async_helpers import TaskCounter, ShuffleQueue
+from ..core.event import is_event
+
+
+class BaseModule:
+    """The base class for all BBOT modules.
+
+    Attributes:
+        watched_events (List): Event types to watch.
+
+        produced_events (List): Event types to produce.
+
+        meta (Dict): Metadata about the module — description, author, created_date, etc.
+
+        flags (List): Flags indicating the type of module (must have at least "passive" or "active").
+
+        deps_modules (List): Other BBOT modules this module depends on. Empty list by default.
+
+        deps_pip (List): Python dependencies to install via pip. Empty list by default.
+
+        deps_apt (List): APT package dependencies to install. Empty list by default.
+
+        deps_shell (List): Other dependencies installed via shell commands. Uses [ansible.builtin.shell](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html). Empty list by default.
+
+        deps_ansible (List): Additional Ansible tasks for complex dependencies. Empty list by default.
+
+        accept_dupes (bool): Whether to accept incoming duplicate events. Default is False.
+
+        suppress_dupes (bool): Whether to suppress outgoing duplicate events. Default is True.
+
+        per_host_only (bool): Limit the module to only scanning once per host. Default is False.
+
+        per_hostport_only (bool): Limit the module to only scanning once per host:port. Default is False.
+
+        per_domain_only (bool): Limit the module to only scanning once per domain. Default is False.
+
+        scope_distance_modifier (int, None): Modifies scope distance acceptance for events. Default is 0.
+            ```
+            None == accept all events
+            2 == accept events up to and including the scan's configured search distance plus two
+            1 == accept events up to and including the scan's configured search distance plus one
+            0 == (DEFAULT) accept events up to and including the scan's configured search distance
+            ```
+
+        target_only (bool): Accept only the initial target event(s). Default is False.
+
+        accept_seeds (bool): Accept seed events (events from initial scan seeds).
+            Defaults to True for passive modules, False otherwise. Can be explicitly set to override the default.
+
+        in_scope_only (bool): Accept only explicitly in-scope events, regardless of the scan's search distance. Default is False.
+
+        accept_url_special (bool): Accept "special" URLs not typically distributed to web modules, e.g. JS URLs. Default is False.
+
+        options (Dict): Customizable options for the module, e.g., {"api_key": ""}. Empty dict by default.
+
+        options_desc (Dict): Descriptions for options, e.g., {"api_key": "API Key"}. Empty dict by default.
+
+        module_threads (int): Maximum concurrent instances of handle_event() or handle_batch(). Default is 1.
+
+        batch_size (int): Size of batches processed by handle_batch(). Default is 1.
+
+        api_failure_abort_threshold (int): Threshold for setting error state after failed HTTP requests (only takes effect when `api_request()` is used. Default is 5.
+
+        _preserve_graph (bool): When set to True, accept events that may be duplicates but are necessary for construction of complete graph. Typically only enabled for output modules that need to maintain full chains of events, e.g. `neo4j` and `json`. Default is False.
+
+        _stats_exclude (bool): Whether to exclude this module from scan statistics. Default is False.
+
+        _disable_auto_module_deps (bool): Whether to disable automatic module dependencies. This is useful e.g. if the module consumes URLs, but you don't want to automatically enable the blasthttp module. Default is False.
+
+        _qsize (int): Outgoing queue size (0 for infinite). Default is 0.
+
+        _priority (int): Priority level of the module. Lower values are higher priority. Default is 3.
+
+        _name (str): Module name, overridden automatically. Default is 'base'.
+
+        _type (str): Module type, for differentiating between normal and output modules. Default is 'scan'.
+    """
+
+    watched_events = []
+    produced_events = []
+    meta = {"description": "Base module"}
+    flags = []
+    options = {}
+    options_desc = {}
+
+    deps_modules = []
+    deps_pip = []
+    deps_apt = []
+    deps_shell = []
+    deps_ansible = []
+
+    accept_dupes = False
+    suppress_dupes = True
+    per_host_only = False
+    per_hostport_only = False
+    per_domain_only = False
+    scope_distance_modifier = 0
+    target_only = False
+    in_scope_only = False
+    accept_url_special = False
+    _avoid_duplicate_content = False
+    _module_threads = 1
+    _batch_size = 1
+
+    # disable the module after this many failed attempts in a row
+    _api_failure_abort_threshold = 3
+    # whether to retry on 429s when first pinging the API at scan start
+    _ping_retry_on_http_429 = False
+
+    default_discovery_context = "{module} discovered {event.type}: {event.pretty_string}"
+
+    _preserve_graph = False
+    _stats_exclude = False
+    _disable_auto_module_deps = False
+    _qsize = 1000
+    _priority = 3
+    _name = "base"
+    _type = "scan"
+    _intercept = False
+    _shuffle_incoming_queue = True
+
+    def __init__(self, scan):
+        """Initializes a module instance.
+
+        Args:
+            scan: The BBOT scan object associated with this module instance.
+
+        Attributes:
+            scan: The scan object associated with this module.
+
+            errored (bool): Whether the module has errored out. Default is False.
+        """
+        self.scan = scan
+        self.errored = False
+        self._log = None
+        self._incoming_event_queue = None
+        self._outgoing_event_queue = None
+        # track incoming events to prevent unwanted duplicates
+        self._incoming_dup_tracker = set()
+        self._content_dup_tracker = set()
+        # tracks which subprocesses are running under this module
+        self._proc_tracker = set()
+        # seconds since we've submitted a batch
+        self._last_submitted_batch = None
+        # additional callbacks to be executed alongside self.cleanup()
+        self.cleanup_callbacks = []
+        self._cleanedup = False
+        self._watched_events = None
+
+        self._task_counter = TaskCounter()
+
+        # string constant
+        self._custom_filter_criteria_msg = "it did not meet custom filter criteria"
+
+        self._api_keys = []
+
+        # track number of failures (for .api_request())
+        self._api_request_failures = 0
+
+        self._default_api_retries = self.scan.config.get("web", {}).get("api_retries", 2)
+
+        self._tasks = []
+        self._event_received = None
+        # maximum runtime for each module's handle_event()
+        self._default_handle_event_timeout = self.scan.config.get("module_handle_event_timeout", 60 * 60)  # 1 hour
+        self._default_handle_batch_timeout = self.scan.config.get(
+            "module_handle_batch_timeout", 60 * 60 * 2
+        )  # 2 hours
+        self._event_handler_watchdog_interval = self.event_handler_timeout / 10
+
+        # used for optional "per host" tracking
+        self._per_host_tracker = set()
+
+        # 429 rate limit handling
+        self._429_sleep_interval = self.scan.web_config.get("429_sleep_interval", 30)
+        self._429_max_sleep_interval = self.scan.web_config.get("429_max_sleep_interval", 60)
+
+    async def setup(self):
+        """
+        Performs one-time setup tasks for the module.
+
+        This method is responsible for preparing the module for its operation, which may include tasks
+        such as downloading necessary resources, validating configuration parameters, or other preliminary
+        checks.
+
+        Returns:
+            tuple:
+                - bool or None: A status indicating the outcome of the setup process. Returns `True` if
+                the setup was successful, `None` for a soft-fail where the module setup did not succeed
+                but the scan will continue with the module disabled, and `False` for a hard-fail where
+                the setup failure causes the scan to abort.
+                - str, optional: A reason for the setup failure, provided only when the setup does not
+                succeed (i.e., returns `None` or `False`).
+
+        Examples:
+            >>> async def setup(self):
+            >>>     if not self.config.get("api_key"):
+            >>>         # Soft-fail: Configuration missing an API key
+            >>>         return None, "No API key specified"
+
+            >>> async def setup(self):
+            >>>     try:
+            >>>         wordlist = await self.helpers.wordlist("https://raw.githubusercontent.com/user/wordlist.txt")
+            >>>     except WordlistError as e:
+            >>>         # Hard-fail: Error retrieving wordlist
+            >>>         return False, f"Error retrieving wordlist: {e}"
+
+            >>> async def setup(self):
+            >>>     self.timeout = self.config.get("timeout", 5)
+            >>>     # Success: Setup completed without issues
+            >>>     return True
+        """
+
+        return True
+
+    async def setup_deps(self):
+        """
+        Similar to setup(), but reserved for installing dependencies not covered by Ansible.
+
+        This should always be used to install static dependencies like AI models, wordlists, etc.
+        """
+        return True
+
+    async def handle_event(self, event, **kwargs):
+        """Asynchronously handles incoming events that the module is configured to watch.
+
+        This method is automatically invoked when an event that matches any in `watched_events` is encountered during a scan. Override this method to implement custom event-handling logic for your module.
+
+        Args:
+            event (Event): The event object containing details about the incoming event.
+
+        Note:
+            This method should be overridden if the `batch_size` attribute of the module is set to 1.
+
+        Returns:
+            None
+        """
+        pass
+
+    async def handle_batch(self, *events):
+        """Handles incoming events in batches for optimized processing.
+
+        This method is automatically called when multiple events that match any in `watched_events` are encountered and the `batch_size` attribute is set to a value greater than 1. Override this method to implement custom batch event-handling logic for your module.
+
+        Args:
+            *events (Event): A variable number of Event objects to be processed in a batch.
+
+        Note:
+            This method should be overridden if the `batch_size` attribute of the module is set to a value greater than 1.
+
+        Returns:
+            None
+        """
+        pass
+
+    async def filter_event(self, event):
+        """Asynchronously filters incoming events based on custom criteria.
+
+        Override this method for more granular control over which events are accepted by your module. This method is called automatically before `handle_event()` for each incoming event that matches any in `watched_events`.
+
+        Args:
+            event (Event): The incoming Event object to be filtered.
+
+        Returns:
+            tuple: A 2-tuple where the first value is a bool indicating whether the event should be accepted, and the second value is a string explaining the reason for its acceptance or rejection. By default, returns `(True, None)` to indicate acceptance without reason.
+
+        Note:
+            This method should be overridden if the module requires custom logic for event filtering.
+        """
+        return True
+
+    async def finish(self):
+        """Asynchronously performs final tasks as the scan nears completion.
+
+        This method can be overridden to execute any necessary finalization logic. For example, if the module relies on a word cloud, you might wait for the scan to finish to ensure the word cloud is most complete before running an operation.
+
+        Returns:
+            None
+
+        Warnings:
+            This method may be called multiple times since it can raise events, which may re-trigger the "finish" phase of the scan. Optional to override.
+        """
+        return
+
+    async def report(self):
+        """Asynchronously executes a final task after the scan is complete but before cleanup.
+
+        This method can be overridden to aggregate data and raise summary events at the end of the scan.
+
+        Returns:
+            None
+
+        Note:
+            This method is called only once per scan.
+        """
+        return
+
+    async def cleanup(self):
+        """Asynchronously performs final cleanup operations after the scan is complete.
+
+        This method can be overridden to implement custom cleanup logic. It is called only once per scan and may not raise events.
+
+        Returns:
+            None
+
+        Note:
+            This method is called only once per scan and may not raise events.
+        """
+        return
+
+    async def require_api_key(self):
+        """
+        Asynchronously checks if an API key is required and valid.
+
+        Args:
+            None
+
+        Returns:
+            bool or tuple: Returns True if API key is valid and ready.
+                          Returns a tuple (None, "error message") otherwise.
+
+        Notes:
+            - Fetches the API key from the configuration.
+            - Calls the 'ping()' method to test API accessibility.
+            - Sets the API key readiness status accordingly.
+        """
+        self.api_key = self.config.get("api_key", "")
+        if self.auth_secret:
+            try:
+                await self.ping()
+                self.hugesuccess("API is ready")
+                return True, ""
+            except Exception as e:
+                self.trace(traceback.format_exc())
+                return None, f"Error with API ({str(e).strip()})"
+        else:
+            return None, "No API key set"
+
+    @property
+    def api_key(self):
+        if self._api_keys:
+            return self._api_keys[0]
+
+    @api_key.setter
+    def api_key(self, api_keys):
+        if isinstance(api_keys, str):
+            api_keys = [api_keys]
+        self._api_keys = list(api_keys)
+
+    def cycle_api_key(self):
+        if len(self._api_keys) > 1:
+            self.verbose("Cycling API key")
+            self._api_keys.insert(0, self._api_keys.pop())
+        else:
+            self.debug("No extra API keys to cycle")
+
+    @property
+    def api_retries(self):
+        return max(self._default_api_retries + 1, len(self._api_keys))
+
+    @property
+    def api_failure_abort_threshold(self):
+        return (self.api_retries * self._api_failure_abort_threshold) + 1
+
+    async def ping(self, url=None):
+        """Asynchronously checks the health of the configured API.
+
+        This method is used in conjunction with require_api_key() to verify that the API is not just configured, but also responsive. It makes a test request to a known endpoint to validate the API's health.
+
+        The method uses the `ping_url` attribute if defined, or falls back to a provided URL. If neither is available, no request is made.
+
+        Args:
+            url (str, optional): A specific URL to use for the ping request. If not provided, the method will use the `ping_url` attribute.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the API response is not successful (status code != 200).
+
+        Example Usage:
+            To use this method, simply define the `ping_url` attribute in your module:
+
+            class MyModule(BaseModule):
+                ping_url = "https://api.example.com/ping"
+
+            Alternatively, you can override this method for more complex health checks:
+
+            async def ping(self):
+                r = await self.api_request(f"{self.base_url}/complex-health-check")
+                if r.status_code != 200 or r.json().get('status') != 'healthy':
+                    raise ValueError(f"API unhealthy: {r.text}")
+        """
+        if url is None:
+            url = getattr(self, "ping_url", "")
+        retry_on_http_429 = getattr(self, "_ping_retry_on_http_429", False)
+        if url:
+            r = await self.api_request(url, retry_on_http_429=retry_on_http_429)
+            if getattr(r, "status_code", 0) != 200:
+                response_text = getattr(r, "text", "no response from server")
+                raise ValueError(response_text)
+
+    @property
+    def batch_size(self):
+        batch_size = self.config.get("batch_size", None)
+        # only allow overriding the batch size if its default value is greater than 1
+        # this prevents modules from being accidentally neutered by an incorrect batch_size setting
+        if batch_size is None or self._batch_size == 1:
+            batch_size = self._batch_size
+        return batch_size
+
+    @property
+    def module_threads(self):
+        module_threads = self.config.get("module_threads", None)
+        if module_threads is None:
+            module_threads = self._module_threads
+        return module_threads
+
+    @property
+    def event_handler_timeout(self):
+        module_timeout = self.config.get("module_timeout", None)
+        if module_timeout is not None:
+            return float(module_timeout)
+        return self._default_handle_event_timeout if self.batch_size <= 1 else self._default_handle_batch_timeout
+
+    @property
+    def auth_secret(self):
+        """Indicates if the module is properly configured for authentication.
+
+        This read-only property should be used to check whether all necessary attributes (e.g., API keys, tokens, etc.) are configured to perform authenticated requests in the module. Commonly used in setup or initialization steps.
+
+        Returns:
+            bool: True if the module is properly configured for authentication, otherwise False.
+        """
+        return getattr(self, "api_key", "")
+
+    @property
+    def event_received(self):
+        if self._event_received is None:
+            self._event_received = asyncio.Condition()
+        return self._event_received
+
+    def get_watched_events(self):
+        """Retrieve the set of events that the module is interested in observing.
+
+        Override this method if the set of events the module should watch needs to be determined dynamically, e.g., based on configuration options or other runtime conditions.
+
+        Returns:
+            set: The set of event types that this module will handle.
+        """
+        if self._watched_events is None:
+            self._watched_events = set(self.watched_events)
+        return self._watched_events
+
+    async def _handle_batch(self):
+        """
+        Asynchronously handles a batch of events in the module.
+
+        Args:
+            None
+
+        Returns:
+            bool: True if events were submitted for processing, False otherwise.
+
+        Notes:
+            - The method is wrapped in a task counter to monitor asynchronous operations.
+            - Checks if there are any events in the incoming queue and module is not in an error state.
+            - Invokes '_events_waiting()' to fetch a batch of events.
+            - Calls the module's 'handle_batch()' method to process these events.
+            - If a "FINISHED" event is found, invokes 'finish()' method of the module.
+        """
+        finish = False
+        submitted = False
+        if self.batch_size <= 1:
+            return
+        if self.num_incoming_events > 0:
+            events, finish = await self._events_waiting()
+            if events and not self.errored:
+                self.verbose(f"Handling batch of {len(events):,} events")
+                event_types = {}
+                for e in events:
+                    event_types[e.type] = event_types.get(e.type, 0) + 1
+                event_types_sorted = sorted(event_types.items(), key=lambda x: x[1], reverse=True)
+                event_types_str = ", ".join(f"{k}: {v}" for k, v in event_types_sorted)
+                submitted = True
+                context = f"{self.name}.handle_batch({event_types_str})"
+                try:
+                    await self.run_task(self.handle_batch(*events), context, n=len(events))
+                except asyncio.CancelledError:
+                    self.debug(f"{context} was cancelled")
+                finally:
+                    for event in events:
+                        event._minimize()
+                self.verbose(f"Finished handling batch of {len(events):,} events")
+        if finish:
+            context = f"{self.name}.finish()"
+            await self.run_task(self.finish(), context)
+        return submitted
+
+    def make_event(self, *args, **kwargs):
+        """Create an event for the scan.
+
+        Raises a validation error if the event could not be created, unless raise_error is set to False.
+
+        Args:
+            *args: Positional arguments to be passed to the scan's make_event method.
+            **kwargs: Keyword arguments to be passed to the scan's make_event method.
+            raise_error (bool, optional): Whether to raise a validation error if the event could not be created. Defaults to False.
+
+        Examples:
+            >>> new_event = self.make_event("1.2.3.4", parent=event)
+            >>> await self.emit_event(new_event)
+
+        Returns:
+            Event or None: The created event, or None if a validation error occurred and raise_error was False.
+
+        Raises:
+            ValidationError: If the event could not be validated and raise_error is True.
+        """
+        raise_error = kwargs.pop("raise_error", False)
+        module = kwargs.pop("module", None)
+        if module is None:
+            if (not args) or getattr(args[0], "module", None) is None:
+                kwargs["module"] = self
+        try:
+            if args and is_event(args[0]):
+                raise ValidationError(
+                    f"{self.__class__.__name__}.make_event() does not accept an existing event "
+                    f"({type(args[0]).__name__}) as the first argument. "
+                    "Use update_event(event, ...) or emit_event(event, ...) instead."
+                )
+            event = self.scan.make_event(*args, **kwargs)
+        except ValidationError as e:
+            if raise_error:
+                raise
+            self.warning(f"{e}")
+            return
+        return event
+
+    def update_event(self, event, **kwargs):
+        """Update an existing event for the scan.
+
+        This is the counterpart to :meth:`make_event` for modifying an existing
+        :class:`bbot.core.event.base.BaseEvent` instance.
+
+        Raises a validation error if the update could not be applied, unless
+        ``raise_error`` is set to False.
+
+        Args:
+            event: The event object to update.
+            **kwargs: Keyword arguments to be passed to the scan's update_event method.
+            raise_error (bool, optional): Whether to raise a validation error if the event could not be updated. Defaults to False.
+
+        Returns:
+            Event or None: The updated event, or None if a validation error occurred and raise_error was False.
+
+        Raises:
+            ValidationError: If the event could not be validated and raise_error is True.
+        """
+        raise_error = kwargs.pop("raise_error", False)
+        module = kwargs.pop("module", None)
+        if module is None and getattr(event, "module", None) is None:
+            kwargs["module"] = self
+        try:
+            updated = self.scan.update_event(event, **kwargs)
+        except ValidationError as e:
+            if raise_error:
+                raise
+            self.warning(f"{e}")
+            return
+        return updated
+
+    async def emit_event(self, *args, **kwargs):
+        """Emit an event to the event queue and distribute it to interested modules.
+
+        This is how modules "return" data.
+
+        The method first creates an event object by calling `self.make_event()` with the provided arguments.
+        Then, the event is queued for outgoing distribution using `self.queue_outgoing_event()`.
+
+        Args:
+            *args: Positional arguments to be passed to `self.make_event()` for event creation.
+            **kwargs: Keyword arguments to be passed for event creation or configuration of the emit action.
+                ```markdown
+                - on_success_callback: Optional callback function to execute upon successful event emission.
+                - abort_if: Optional condition under which the event emission should be aborted.
+                - quick: Optional flag to indicate whether the event should be processed quickly.
+                ```
+
+        Examples:
+            >>> await self.emit_event("www.evilcorp.com", parent=event, tags=["affiliate"])
+
+            >>> new_event = self.make_event("1.2.3.4", parent=event)
+            >>> await self.emit_event(new_event)
+
+        Returns:
+            None
+
+        Raises:
+            ValidationError: If the event cannot be validated (handled in `self.make_event()`).
+        """
+        event_kwargs = dict(kwargs)
+        emit_kwargs = {}
+        for o in ("on_success_callback", "abort_if", "quick"):
+            v = event_kwargs.pop(o, None)
+            if v is not None:
+                emit_kwargs[o] = v
+
+        # Two entry points:
+        #  - emit_event(data, ...)           -> create a new event via make_event()
+        #  - emit_event(existing_event, ...) -> update and re‑emit that event
+        if args and is_event(args[0]):
+            event, *rest = args
+            if rest:
+                self.warning(
+                    f"emit_event() was called on {self.name} with an existing event and extra "
+                    f"positional args ({rest}); extra args are ignored. "
+                    "Pass only the event plus keyword arguments, or call make_event() explicitly."
+                )
+            # Update the existing event (e.g. tags/context/module) before emitting
+            event = self.update_event(event, **event_kwargs)
+        else:
+            event = self.make_event(*args, **event_kwargs)
+
+        if event is not None:
+            children = event.children
+            for e in [event] + children:
+                await self.queue_outgoing_event(e, **emit_kwargs)
+        return event
+
+    async def _events_waiting(self, batch_size=None):
+        """
+        Asynchronously fetches events from the incoming_event_queue, up to a specified batch size.
+
+        Args:
+            None
+
+        Returns:
+            tuple: A tuple containing two elements:
+                - events (list): A list of acceptable events from the queue.
+                - finish (bool): A flag indicating if a "FINISHED" event is encountered.
+
+        Notes:
+            - The method pulls events from incoming_event_queue using 'get_nowait()'.
+            - Events go through '_event_postcheck()' for validation.
+            - "FINISHED" events are handled differently and the finish flag is set to True.
+            - If the queue is empty or the batch size is reached, the loop breaks.
+        """
+        if batch_size is None:
+            batch_size = self.batch_size
+        events = []
+        finish = False
+        while self.incoming_event_queue:
+            if batch_size != -1 and len(events) > self.batch_size:
+                break
+            try:
+                event = self.incoming_event_queue.get_nowait()
+                async with self._task_counter.count(f"event_postcheck({event})"):
+                    acceptable, reason = await self._event_postcheck(event)
+                if acceptable:
+                    if event.type == "FINISHED":
+                        finish = True
+                        event._minimize()
+                    else:
+                        events.append(event)
+                        self.scan.stats.event_consumed(event, self)
+                else:
+                    event._minimize()
+                    if reason:
+                        self.debug(f"Not accepting {event} because {reason}")
+            except asyncio.queues.QueueEmpty:
+                break
+        return events, finish
+
+    @property
+    def num_incoming_events(self):
+        ret = 0
+        if self.incoming_event_queue is not False:
+            ret = self.incoming_event_queue.qsize()
+        return ret
+
+    def start(self):
+        self._tasks = [
+            asyncio.create_task(self._worker(), name=f"{self.scan.name}.{self.name}._worker()")
+            for _ in range(self.module_threads)
+        ]
+        watchdog_task = asyncio.create_task(
+            self._event_handler_watchdog(),
+            name=f"{self.scan.name}.{self.name}._event_handler_watchdog()",
+        )
+        self._tasks.append(watchdog_task)
+
+    async def _setup(self, deps_only=False):
+        """ """
+        status_codes = {False: "hard-fail", None: "soft-fail", True: "success"}
+
+        status = False
+        self.debug(f"Setting up module {self.name}")
+        try:
+            funcs = [self.setup_deps]
+            if not deps_only:
+                funcs.append(self.setup)
+            for func in funcs:
+                self.debug(f"Running {self.name}.{func.__name__}()")
+                result = await func()
+                if type(result) == tuple and len(result) == 2:
+                    status, msg = result
+                else:
+                    status = result
+                    msg = status_codes[status]
+                if status is False:
+                    break
+            self.debug(f"Finished setting up module {self.name}")
+        except Exception as e:
+            self.set_error_state(f"Unexpected error during module setup: {e}", critical=True)
+            msg = f"{e}"
+            self.trace()
+        return self, status, str(msg)
+
+    async def _worker(self):
+        """
+        The core worker loop for the module, responsible for handling events from the incoming event queue.
+
+        This method is a coroutine and is run asynchronously. Multiple instances can run simultaneously based on
+        the 'module_threads' configuration. The worker dequeues events from 'incoming_event_queue', performs
+        necessary prechecks, and passes the event to the appropriate handler function.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            asyncio.CancelledError: If the worker is cancelled during its operation.
+
+        Notes:
+            - The worker is sensitive to the 'stopping' flag of the scan. It will terminate if this flag is set.
+            - The worker handles backpressure by pausing when the outgoing event queue is full.
+            - Batch processing is supported and is activated when 'batch_size' > 1.
+            - Each event is subject to a post-check via '_event_postcheck()' to decide whether it should be handled.
+            - Special 'FINISHED' events trigger the 'finish()' method of the module.
+        """
+        try:
+            async with self.scan._acatch(context=self._worker, unhandled_is_critical=True):
+                while not self.scan.stopping and not self.errored:
+                    # if batch wasn't big enough, we wait for the next event before continuing
+                    if self.batch_size > 1:
+                        submitted = await self._handle_batch()
+                        if not submitted:
+                            async with self.event_received:
+                                await self.event_received.wait()
+
+                    else:
+                        try:
+                            if self.incoming_event_queue is not False:
+                                event = await self.incoming_event_queue.get()
+                            else:
+                                self.debug("Event queue is in bad state")
+                                break
+                        except asyncio.queues.QueueEmpty:
+                            continue
+                        try:
+                            async with self._task_counter.count(f"event_postcheck({event})"):
+                                acceptable, reason = await self._event_postcheck(event)
+                            if acceptable:
+                                if event.type == "FINISHED":
+                                    context = f"{self.name}.finish()"
+                                    try:
+                                        await self.run_task(self.finish(), context)
+                                    except asyncio.CancelledError:
+                                        self.debug(f"{context} was cancelled")
+                                        continue
+                                else:
+                                    context = f"{self.name}.handle_event({event})"
+                                    self.scan.stats.event_consumed(event, self)
+                                    self.debug(f"Handling {event} from {getattr(event, 'module', 'unknown_module')}")
+                                    try:
+                                        await self.run_task(self.handle_event(event), context)
+                                    except asyncio.CancelledError:
+                                        self.debug(f"{context} was cancelled")
+                                        continue
+                                    self.debug(f"Finished handling {event}")
+                            else:
+                                self.debug(f"Not accepting {event} because {reason}")
+                        finally:
+                            event._minimize()
+        except asyncio.CancelledError:
+            raise
+        except RuntimeError as e:
+            self.trace(f"RuntimeError in module {self.name}: {e}")
+        except BaseException as e:
+            if self.helpers.in_exception_chain(e, (KeyboardInterrupt,)):
+                await self.scan.async_stop()
+            else:
+                self.error(f"Critical failure in module {self.name}: {e}")
+                self.error(traceback.format_exc())
+        self.log.trace("Worker stopped")
+
+    @property
+    def accept_seeds(self):
+        """
+        Returns whether the module accepts seed events.
+        Defaults to True for passive modules, False otherwise.
+        """
+        # Default to True for passive modules, False otherwise
+        return "passive" in self.flags
+
+    @property
+    def max_scope_distance(self):
+        """
+        Maximum scope distance for events that are accepted by the module.
+        """
+        if self.in_scope_only or self.target_only:
+            return 0
+        if self.scope_distance_modifier is None:
+            return 999
+        return max(0, self.scan.scope_search_distance + self.scope_distance_modifier)
+
+    def _event_precheck(self, event):
+        """
+        Pre-checks an event to determine if it should be accepted by the module for queuing.
+
+        This method is called when an event is about to be enqueued into the module's incoming event queue.
+        It applies various filters such as special signal event types, module error state, watched event types, and more
+        to decide whether or not the event should be enqueued.
+
+        Args:
+            event (Event): The event object to check.
+
+        Returns:
+            tuple: A tuple (bool, str) where the bool indicates if the event should be accepted, and the str gives the reason.
+
+        Examples:
+            >>> result, reason = self._event_precheck(event)
+            >>> if result:
+            ...     self.incoming_event_queue.put_nowait(event)
+            ... else:
+            ...     self.debug(f"Not accepting {event} because {reason}")
+
+        Notes:
+            - The method considers special signal event types like "FINISHED".
+            - Checks whether the module is in an error state.
+            - Checks if the event type matches the types this module is interested in (`watched_events`).
+            - Checks for events tagged as 'target' if the module has `target_only` flag set.
+            - Applies specific filtering based on event type and module name.
+        """
+
+        # special signal event types
+        if event.type in ("FINISHED",):
+            return True, "its type is FINISHED"
+        if self.errored:
+            return False, "module is in error state"
+        # exclude non-watched types
+        watched_events = self.get_watched_events()
+        event_type_watched = any(t in watched_events for t in ("*", event.type))
+        # Check if module accepts seeds and event is a seed (only if event type is watched)
+        if self.accept_seeds and "seed" in event.tags and event_type_watched:
+            return True, "it is a seed event and module accepts seeds"
+        if not event_type_watched:
+            return False, "its type is not in watched_events"
+        if self.target_only and "target" not in event.tags:
+            return False, "it did not meet target_only filter criteria"
+
+        # limit events with special URL extensions (e.g. .js) to modules that opt in
+        if not self.accept_url_special:
+            extension = getattr(event, "url_extension", "")
+            if extension in self.scan.url_extension_special:
+                return (
+                    False,
+                    f"it has a special URL extension ({extension}) but the module does not opt in to receive special URLs",
+                )
+
+        return True, "precheck succeeded"
+
+    async def _event_postcheck(self, event):
+        """
+        A simple wrapper for dup tracking
+        """
+        # special exception for "FINISHED" event
+        if event.type in ("FINISHED",):
+            return True, ""
+        acceptable, reason = await self._event_postcheck_inner(event)
+        if acceptable:
+            # check duplicates
+            is_incoming_duplicate, reason = self.is_incoming_duplicate(event, add=True)
+            if is_incoming_duplicate and not self.accept_dupes:
+                return False, "module has already seen it" + (f" ({reason})" if reason else "")
+
+        return acceptable, reason
+
+    async def _event_postcheck_inner(self, event):
+        """
+        Post-checks an event to determine if it should be accepted by the module for handling.
+
+        This method is called when an event is dequeued from the module's incoming event queue, right before it is actually processed.
+        It applies various filters such as scope, custom filtering logic, and per-host tracking to decide the event's fate.
+
+        Args:
+            event (Event): The event object to check.
+
+        Returns:
+            tuple: A tuple (bool, str) where the bool indicates if the event should be accepted, and the str gives the reason.
+
+        Notes:
+            - Override the `filter_event` method for custom filtering logic.
+            - This method also maintains host-based tracking when the `per_host_only` or similar flags are set.
+            - The method will also update event production stats for output modules.
+        """
+        # force-output certain events to the graph
+        if self._is_graph_important(event):
+            return True, "event is critical to the graph"
+
+        # check scope distance
+        filter_result, reason = self._scope_distance_check(event)
+        if not filter_result:
+            return filter_result, reason
+
+        # custom filtering
+        async with self.scan._acatch(context=self.filter_event):
+            try:
+                filter_result = await self.filter_event(event)
+            except Exception as e:
+                msg = f"Unhandled exception in {self.name}.filter_event({event}): {e}"
+                self.error(msg)
+                return False, msg
+            msg = str(self._custom_filter_criteria_msg)
+            with suppress(ValueError, TypeError):
+                filter_result, reason = filter_result
+                msg += f": {reason}"
+            if not filter_result:
+                return False, msg
+
+        return True, ""
+
+    async def _is_http_wildcard_host(self, event):
+        """Check whether the event's host is an HTTP wildcard responder.
+
+        Extracts scheme/host/port from the event's parsed_url when available,
+        otherwise falls back to ``event.host`` with https/443.  Returns True
+        (wildcard), False (not wildcard), or None (probe failed / no host).
+        """
+        p = getattr(event, "parsed_url", None)
+        if p is not None and p.hostname:
+            host = p.hostname
+            port = p.port or (443 if p.scheme == "https" else 80)
+            scheme = p.scheme
+        elif event.host:
+            # may miss HTTP-only wildcard hosts, but not worth doubling probe requests
+            host = str(event.host)
+            port = 443
+            scheme = "https"
+        else:
+            return None
+        result = await self.helpers.is_http_wildcard_host(scheme, host, port)
+        if result in (False, None):
+            return result
+        return True
+
+    def _scope_distance_check(self, event):
+        # Seeds bypass scope distance checks
+        if self.accept_seeds and "seed" in event.tags:
+            return True, "it is a seed event and module accepts seeds"
+        if self.in_scope_only:
+            if event.scope_distance > 0:
+                return False, "it did not meet in_scope_only filter criteria"
+        if self.scope_distance_modifier is not None:
+            if event.scope_distance < 0:
+                return False, f"its scope_distance ({event.scope_distance}) is invalid."
+            elif event.scope_distance > self.max_scope_distance:
+                return (
+                    False,
+                    f"its scope_distance ({event.scope_distance}) exceeds the maximum allowed by the scan ({self.scan.scope_search_distance}) + the module ({self.scope_distance_modifier}) == {self.max_scope_distance}",
+                )
+        return True, ""
+
+    async def _cleanup(self):
+        if not self._cleanedup:
+            self._cleanedup = True
+            for callback in [self.cleanup] + self.cleanup_callbacks:
+                context = f"{self.name}.cleanup()"
+                if callable(callback):
+                    async with self.scan._acatch(context), self._task_counter.count(context):
+                        await self.helpers.execute_sync_or_async(callback)
+
+    async def run_task(self, coro, name, n=1):
+        """
+        Start a task while tracking it in the module's task counter.
+
+        This lets us keep a detailed module status and selectively cancel tasks when needed, like when handle_event exceeds its max runtime.
+        """
+        task = asyncio.create_task(coro)
+        async with self.scan._acatch(context=name), self._task_counter.count(task_name=name, asyncio_task=task, n=n):
+            return await task
+
+    async def _event_handler_watchdog(self):
+        """
+        Watches handle_event and handle_batch tasks and cancels them if they exceed their max runtime.
+        """
+        while not self.scan.stopping and not self.errored:
+            # if there are events in the outgoing queue, we leave the tasks alone
+            if self.outgoing_event_queue.qsize() > 0:
+                await self.helpers.sleep(self._event_handler_watchdog_interval)
+                continue
+            event_handler_tasks = [
+                t for t in self._task_counter.tasks.values() if t.function_name in ("handle_event", "handle_batch")
+            ]
+            for task in event_handler_tasks:
+                if task.running_for > self.event_handler_timeout:
+                    self.warning(
+                        f"{self.name} Cancelling event handler task {task.task_name} because it's been running for {task.running_for:.1f}s (max timeout is {self.event_handler_timeout})"
+                    )
+                    await task.cancel()
+            await asyncio.sleep(self._event_handler_watchdog_interval)
+
+    async def queue_event(self, event):
+        """
+        Asynchronously queues an incoming event to the module's event queue for further processing.
+
+        The function performs an initial check to see if the event is acceptable for queuing.
+        If the event passes the check, it is put into the `incoming_event_queue`.
+
+        Args:
+            event: The event object to be queued.
+
+        Returns:
+            None: The function doesn't return anything but modifies the state of the `incoming_event_queue`.
+
+        Examples:
+            >>> await self.queue_event(some_event)
+
+        Raises:
+            AttributeError: If the module is not in an acceptable state to queue incoming events.
+        """
+        async with self._task_counter.count("queue_event()", _log=False):
+            if self.incoming_event_queue is False:
+                self.debug("Not in an acceptable state to queue incoming event")
+                return
+            acceptable, reason = self._event_precheck(event)
+            if not acceptable:
+                if reason and reason != "its type is not in watched_events":
+                    self.debug(f"Not queueing {event} because {reason}")
+                return
+            try:
+                self.incoming_event_queue.put_nowait(event)
+                self._increment_consumer_count(event)
+                async with self.event_received:
+                    self.event_received.notify()
+                if event.type != "FINISHED":
+                    self.scan._new_activity = True
+            except AttributeError:
+                self.debug("Not in an acceptable state to queue incoming event")
+
+    def _increment_consumer_count(self, event):
+        """Increment the event's consumer count when it lands in this module's queue.
+
+        Paired with the matching ``_minimize()`` call when the worker
+        finishes processing. Modules that have no real worker (e.g. the
+        ``python`` output module backing ``Scanner.async_start``)
+        override this to skip the increment — otherwise the count
+        leaks +1 forever and ``_minimize()``'s strip block never fires.
+        """
+        event._module_consumers += 1
+
+    async def queue_outgoing_event(self, event, **kwargs):
+        """
+        Queues an outgoing event to the module's outgoing event queue for further processing.
+
+        The function attempts to put the event into the `outgoing_event_queue` immediately.
+        If it's not possible due to the current state of the module, an AttributeError is raised, and a debug log is generated.
+
+        Args:
+            event: The event object to be queued.
+            **kwargs: Additional keyword arguments to be associated with the event.
+
+        Returns:
+            None: The function doesn't return anything but modifies the state of the `outgoing_event_queue`.
+
+        Examples:
+            >>> self.queue_outgoing_event(some_outgoing_event, abort_if=lambda e: "unresolved" in e.tags)
+
+        Raises:
+            AttributeError: If the module is not in an acceptable state to queue outgoing events.
+        """
+        try:
+            await self.outgoing_event_queue.put((event, kwargs))
+        except AttributeError:
+            self.debug("Not in an acceptable state to queue outgoing event")
+
+    def set_error_state(self, message=None, clear_outgoing_queue=False, critical=False, log_level="error"):
+        """
+        Puts the module into an errored state where it cannot accept new events. Optionally logs a message.
+
+        Args:
+            message (str, optional): Additional message to log alongside the state transition.
+            clear_outgoing_queue (bool): Drain the outgoing event queue as well.
+            critical (bool): Log at CRITICAL severity (overrides log_level).
+            log_level (str): Severity to log at when not critical. Use "info" or "verbose" for intentional
+                stops (e.g. user-initiated kill) so they don't appear in error.log.
+
+        Examples:
+            >>> self.set_error_state()
+            >>> self.set_error_state("Failed to connect to the server")
+            >>> self.set_error_state("killed by user", log_level="info")
+        """
+        if not self.errored:
+            log_msg = "Setting error state"
+            if message is not None:
+                log_msg += f": {message}"
+            if critical:
+                self.critical(log_msg, trace=False)
+            else:
+                getattr(self, log_level)(log_msg)
+            self.errored = True
+            # clear incoming queue
+            if self.incoming_event_queue is not False:
+                self.debug("Emptying event_queue")
+                with suppress(asyncio.queues.QueueEmpty):
+                    while 1:
+                        self.incoming_event_queue.get_nowait()
+                # set queue to None to prevent its use
+                # if there are leftover objects in the queue, the scan will hang.
+                self._incoming_event_queue = False
+
+            if clear_outgoing_queue:
+                with suppress(asyncio.queues.QueueEmpty):
+                    while 1:
+                        self.outgoing_event_queue.get_nowait()
+
+    def is_incoming_duplicate(self, event, add=False):
+        if event.type in ("FINISHED",):
+            return False, ""
+        reason = ""
+        try:
+            event_hash = self._incoming_dedup_hash(event)
+        except Exception as e:
+            msg = f"Unhandled exception in {self.name}._incoming_dedup_hash({event}): {e}"
+            self.error(msg)
+            return True, msg
+        with suppress(TypeError, ValueError):
+            event_hash, reason = event_hash
+        is_post = isinstance(event.data, dict) and event.data.get("method", "") == "POST"
+        is_dup = event_hash in self._incoming_dup_tracker and not is_post
+        if add and not is_post:
+            self._incoming_dup_tracker.add(event_hash)
+        if not is_dup and self._avoid_duplicate_content:
+            hash_dict = event.data.get("hash") if isinstance(event.data, dict) else None
+            body_hash = hash_dict.get("body_sha256", "") if isinstance(hash_dict, dict) else ""
+            # skip dedup for empty bodies (e.g. 302 redirects) where the useful data is in headers
+            if body_hash and body_hash != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":
+                content_key = hash((event.host, event.port, body_hash))
+                if content_key in self._content_dup_tracker:
+                    is_dup = True
+                    reason = f"duplicate content (body_hash={body_hash})"
+                if add:
+                    self._content_dup_tracker.add(content_key)
+        return is_dup, reason
+
+    def _incoming_dedup_hash(self, event):
+        """
+        Determines the criteria for what is considered to be a duplicate event if `accept_dupes` is False.
+        """
+        if self.per_host_only:
+            return self.get_per_host_hash(event), "per_host_only=True"
+        if self.per_hostport_only:
+            return self.get_per_hostport_hash(event), "per_hostport_only=True"
+        elif self.per_domain_only:
+            return self.get_per_domain_hash(event), "per_domain_only=True"
+        return hash(event), ""
+
+    def _outgoing_dedup_hash(self, event):
+        """
+        Determines the criteria for what is considered to be a duplicate event if `suppress_dupes` is True.
+
+        We take into account the `internal` attribute we don't want an internal event (which isn't distributed to output modules)
+        to inadvertently suppress a non-internal event.
+        """
+        return hash((event, self.name, event.internal, event.always_emit))
+
+    def get_per_host_hash(self, event):
+        """
+        Computes a per-host hash value for a given event. This method may be optionally overridden in subclasses.
+
+        The function uses the event's `host` to create a string to be hashed.
+
+        Args:
+            event (Event): The event object containing host information.
+
+        Returns:
+            int: The hash value computed for the host.
+
+        Examples:
+            >>> event = self.make_event("https://example.com:8443")
+            >>> self.get_per_host_hash(event)
+        """
+        return hash(event.host)
+
+    def get_per_hostport_hash(self, event):
+        """
+        Computes a per-host:port hash value for a given event. This method may be optionally overridden in subclasses.
+
+        The function uses the event's `host`, `port`, and `scheme` (for URLs) to create a string to be hashed.
+        The hash value is used for distinguishing events related to the same host.
+
+        Args:
+            event (Event): The event object containing host, port, or parsed URL information.
+
+        Returns:
+            int: The hash value computed for the host.
+
+        Examples:
+            >>> event = self.make_event("https://example.com:8443")
+            >>> self.get_per_hostport_hash(event)
+        """
+        parsed = getattr(event, "parsed_url", None)
+        if parsed is None:
+            to_hash = self.helpers.make_netloc(event.host, event.port)
+        else:
+            to_hash = f"{parsed.scheme}://{parsed.netloc}/"
+        return hash(to_hash)
+
+    def get_per_domain_hash(self, event):
+        """
+        Computes a per-domain hash value for a given event. This method may be optionally overridden in subclasses.
+
+        Events with the same root domain will receive the same hash value.
+
+        Args:
+            event (Event): The event object containing host, port, or parsed URL information.
+
+        Returns:
+            int: The hash value computed for the domain.
+
+        Examples:
+            >>> event = self.make_event("https://www.example.com:8443")
+            >>> self.get_per_domain_hash(event)
+        """
+        _, domain = self.helpers.split_domain(event.host)
+        return hash(domain)
+
+    @property
+    def name(self):
+        return str(self._name)
+
+    @property
+    def helpers(self):
+        return self.scan.helpers
+
+    @property
+    def status(self):
+        """
+        Provides the current status of the module as a dictionary.
+
+        The dictionary contains the following keys:
+            - 'events': A sub-dictionary with 'incoming' and 'outgoing' keys, representing the number of events in the respective queues.
+            - 'tasks': The current value of the task counter.
+            - 'errored': A boolean value indicating if the module is in an error state.
+            - 'running': A boolean value indicating if the module is currently processing data.
+
+        Returns:
+            dict: A dictionary containing the current status of the module.
+
+        Examples:
+            >>> self.status
+            {'events': {'incoming': 5, 'outgoing': 2}, 'tasks': 3, 'errored': False, 'running': True}
+        """
+        status = {
+            "events": {"incoming": self.num_incoming_events, "outgoing": self.outgoing_event_queue.qsize()},
+            "tasks": self._task_counter.value,
+            "errored": self.errored,
+        }
+        status["running"] = self.running
+        return status
+
+    @property
+    def running(self):
+        """Property indicating whether the module is currently processing data.
+
+        This property checks if the task counter (`self._task_counter.value`) is greater than zero,
+        indicating that there are ongoing tasks in the module.
+
+        Returns:
+            bool: True if the module is currently processing data, False otherwise.
+        """
+        return self._task_counter.value > 0
+
+    @property
+    def finished(self):
+        """Property indicating whether the module has finished processing.
+
+        This property checks three conditions to determine if the module is finished:
+        1. The module is not currently running (`self.running` is False).
+        2. The number of incoming events in the queue is zero or less (`self.num_incoming_events <= 0`).
+        3. The number of outgoing events in the queue is zero or less (`self.outgoing_event_queue.qsize() <= 0`).
+
+        Returns:
+            bool: True if the module has finished processing, False otherwise.
+        """
+        return not self.running and self.num_incoming_events <= 0 and self.outgoing_event_queue.qsize() <= 0
+
+    async def run_process(self, *args, **kwargs):
+        kwargs["_proc_tracker"] = self._proc_tracker
+        return await self.helpers.run(*args, **kwargs)
+
+    async def run_process_live(self, *args, **kwargs):
+        kwargs["_proc_tracker"] = self._proc_tracker
+        async for line in self.helpers.run_live(*args, **kwargs):
+            yield line
+
+    def prepare_api_request(self, url, kwargs):
+        """
+        Prepare an API request by adding the necessary authentication - header, bearer token, etc.
+        """
+        if self.api_key:
+            url = url.format(api_key=self.api_key)
+            if "headers" not in kwargs:
+                kwargs["headers"] = {}
+            kwargs["headers"]["Authorization"] = f"Bearer {self.api_key}"
+        return url, kwargs
+
+    async def api_request(self, *args, **kwargs):
+        """
+        Makes an HTTP request while automatically:
+            - avoiding rate limits (sleep/retry)
+            - cycling API keys
+            - cancelling after too many failed attempts
+        """
+        url = args[0] if args else kwargs.pop("url", "")
+        retry_on_http_429 = kwargs.pop("retry_on_http_429", True)
+
+        # loop until we have a successful request
+        for _ in range(self.api_retries):
+            if "headers" not in kwargs:
+                kwargs["headers"] = {}
+            if "ssl_verify" not in kwargs:
+                kwargs["ssl_verify"] = self.helpers.web.ssl_verify_infrastructure
+            if "timeout" not in kwargs:
+                kwargs["timeout"] = self.http_timeout_infrastructure
+            new_url, kwargs = self.prepare_api_request(url, kwargs)
+            kwargs["url"] = new_url
+
+            r = await self.helpers.request(**kwargs)
+            success = r is not None and self._api_response_is_success(r)
+
+            if success:
+                self._api_request_failures = 0
+            else:
+                status_code = getattr(r, "status_code", 0)
+                response_text = getattr(r, "text", "")
+                self.trace(f"API response to {url} failed with status code {status_code}: {response_text}")
+                self._api_request_failures += 1
+                if self._api_request_failures >= self.api_failure_abort_threshold:
+                    self.set_error_state(
+                        f"Setting error state due to {self._api_request_failures:,} failed HTTP requests"
+                    )
+                else:
+                    # sleep for a bit if we're being rate limited
+                    retry_after = self._get_retry_after(r)
+                    if (retry_after or status_code == 429) and retry_on_http_429:
+                        sleep_interval = int(retry_after) if retry_after is not None else self._429_sleep_interval
+                        if retry_after and retry_after > self._429_max_sleep_interval:
+                            self.verbose(
+                                f"Got an excessive retry-after header of {retry_after} from {new_url}, using {self._429_max_sleep_interval} instead"
+                            )
+                            sleep_interval = self._429_max_sleep_interval
+                        self.verbose(
+                            f"Sleeping for {sleep_interval:,} seconds due to rate limit (HTTP status: {status_code})"
+                        )
+                        await asyncio.sleep(sleep_interval)
+                    elif self._api_keys:
+                        # if request failed, cycle API keys and try again
+                        self.cycle_api_key()
+                    continue
+            break
+
+        return r
+
+    async def api_download(self, url, **kwargs):
+        """
+        A wrapper around the `download()` web helper that incorporates API key cycling.
+        """
+        error = None
+        raise_error = kwargs.pop("raise_error", False)
+        for _ in range(self.api_retries):
+            new_url, kwargs = self.prepare_api_request(url, kwargs)
+            if "raise_error" not in kwargs:
+                kwargs["raise_error"] = True
+            try:
+                return await self.helpers.download(new_url, **kwargs)
+            except WebError as e:
+                error = e
+                self.cycle_api_key()
+        if raise_error:
+            raise error
+
+    def _get_retry_after(self, r):
+        # try to get retry_after from headers first
+        headers = getattr(r, "headers", {})
+        retry_after = headers.get("Retry-After", None)
+        if retry_after is None:
+            # then look in body json
+            with suppress(Exception):
+                body_json = r.json()
+                if isinstance(body_json, dict):
+                    retry_after = body_json.get("retry_after", None)
+        if retry_after is not None:
+            # we don't allow retry-after smaller than 1 second
+            # this is to prevent cases where APIs erroneously return a retry-after value of 0
+            # e.g. https://github.com/blacklanternsecurity/bbot/issues/2826
+            return max(1.0, float(retry_after))
+
+    def _prepare_api_iter_req(self, url, page, page_size, offset, **requests_kwargs):
+        """
+        Default function for preparing an API request for iterating through paginated data.
+        """
+        url = self.helpers.safe_format(url, page=page, page_size=page_size, offset=offset)
+        return url, requests_kwargs
+
+    def _api_response_is_success(self, r):
+        # 404s typically indicate no data rather than an actual error with the API, so we don't want to retry them
+        return getattr(r, "is_success", False) or getattr(r, "status_code", 0) == 404
+
+    async def api_page_iter(self, url, page_size=100, _json=True, next_key=None, iter_key=None, **requests_kwargs):
+        """
+        An asynchronous generator function for iterating through paginated API data.
+
+        This function continuously makes requests to a specified API URL, incrementing the page number
+        or applying a custom pagination function, and yields the received data one page at a time.
+        It is well-suited for APIs that provide paginated results.
+
+        Args:
+            url (str): The initial API URL. Can contain placeholders for 'page', 'page_size', and 'offset'.
+            page_size (int, optional): The number of items per page. Defaults to 100.
+            json (bool, optional): If True, attempts to deserialize the response content to a JSON object. Defaults to True.
+            next_key (callable, optional): A function that takes the last page's data and returns the URL for the next page. Defaults to None.
+            iter_key (callable, optional): A function that builds each new request based on the page number, page size, and offset. Defaults to a simple implementation that autoreplaces {page} and {page_size} in the url.
+            **requests_kwargs: Arbitrary keyword arguments that will be forwarded to the HTTP request function.
+
+        Yields:
+            dict or Response: If 'json' is True, yields a dictionary containing the parsed JSON data. Otherwise, yields the raw HTTP response.
+
+        Note:
+            The loop will continue indefinitely unless manually stopped. Make sure to break out of the loop once the last page has been received.
+
+        Examples:
+            >>> agen = api_page_iter('https://api.example.com/data?page={page}&page_size={page_size}')
+            >>> try:
+            >>>     async for page in agen:
+            >>>         subdomains = page["subdomains"]
+            >>>         self.hugesuccess(subdomains)
+            >>>         if not subdomains:
+            >>>             break
+            >>> finally:
+            >>>     await agen.aclose()
+        """
+        page = 1
+        offset = 0
+        result = None
+        if iter_key is None:
+            iter_key = self._prepare_api_iter_req
+        while 1:
+            if result and callable(next_key):
+                try:
+                    new_url = next_key(result)
+                except Exception as e:
+                    self.debug(f"Failed to extract next page of results from {url}: {e}")
+                    self.debug(traceback.format_exc())
+            else:
+                new_url, new_kwargs = iter_key(url, page, page_size, offset, **requests_kwargs)
+            result = await self.api_request(new_url, **new_kwargs)
+            if result is None:
+                self.verbose(f"api_page_iter() got no response for {new_url}")
+                break
+            try:
+                if _json:
+                    result = result.json()
+                yield result
+            except Exception:
+                self.warning(f'Error in api_page_iter() for url: "{new_url}"')
+                self.trace(traceback.format_exc())
+                break
+            finally:
+                offset += page_size
+                page += 1
+
+    @property
+    def preset(self):
+        return self.scan.preset
+
+    @property
+    def config(self):
+        """Property that provides easy access to the module's configuration in the scan's config.
+
+        This property serves as a shortcut to retrieve the module-specific configuration from
+        `self.scan.config`. If no configuration is found for this module, an empty dictionary is returned.
+
+        Returns:
+            dict: The configuration dictionary specific to this module.
+        """
+        config = self.scan.config.get("modules", {}).get(self.name, {})
+        if config is None:
+            config = {}
+        return config
+
+    @property
+    def incoming_event_queue(self):
+        if self._incoming_event_queue is None:
+            if self._shuffle_incoming_queue:
+                self._incoming_event_queue = ShuffleQueue()
+            else:
+                self._incoming_event_queue = asyncio.Queue()
+        return self._incoming_event_queue
+
+    @property
+    def outgoing_event_queue(self):
+        if self._outgoing_event_queue is None:
+            self._outgoing_event_queue = ShuffleQueue(self._qsize)
+        return self._outgoing_event_queue
+
+    @property
+    def priority(self):
+        """
+        Gets the priority level of the module as an integer.
+
+        The priority level is constrained to be between 1 and 5, inclusive.
+        A lower value indicates a higher priority.
+
+        Returns:
+            int: The priority level of the module, constrained between 1 and 5.
+
+        Examples:
+            >>> self.priority
+            3
+        """
+        return int(max(1, min(5, self._priority)))
+
+    @property
+    def auth_required(self):
+        """True iff this module's `class Config` declares any `mandatory=True` field."""
+        cfg = getattr(type(self), "Config", None)
+        if cfg is None:
+            return False
+        from bbot.core.config.models import is_mandatory
+
+        return any(is_mandatory(f) for f in getattr(cfg, "model_fields", {}).values())
+
+    @property
+    def http_timeout(self):
+        """
+        Convenience shortcut to `http_timeout` in the config (target-directed traffic)
+        """
+        return self.scan.web_config.get("http_timeout", 10)
+
+    @property
+    def http_timeout_infrastructure(self):
+        """
+        Convenience shortcut to `http_timeout_infrastructure` in the config (APIs, wordlist downloads, etc.)
+        """
+        return self.scan.web_config.get("http_timeout_infrastructure", 10)
+
+    @property
+    def log(self):
+        if getattr(self, "_log", None) is None:
+            self._log = logging.getLogger(f"bbot.modules.{self.name}")
+        return self._log
+
+    @property
+    def memory_usage(self):
+        """Property that calculates the current memory usage of the module in bytes.
+
+        This property uses the `get_size` function to estimate the memory consumption
+        of the module object. The depth of the object graph traversal is limited to 3 levels
+        to avoid performance issues. Commonly shared objects like `self.scan`, `self.helpers`,
+        are excluded from the calculation to prevent double-counting.
+
+        Returns:
+            int: The estimated memory usage of the module in bytes.
+        """
+        seen = {self.scan, self.helpers, self.log}  # noqa
+        return get_size(self, max_depth=3, seen=seen)
+
+    def __str__(self):
+        return self.name
+
+    def log_table(self, *args, **kwargs):
+        """Logs a table to the console and optionally writes it to a file.
+
+        This function generates a table using `self.helpers.make_table`, then logs each line
+        of the table as an info-level log. If a table_name is provided, it also writes the table to a file.
+
+        Args:
+            *args: Variable length argument list to be passed to `self.helpers.make_table`.
+            **kwargs: Arbitrary keyword arguments. If 'table_name' is specified, the table will be written to a file.
+
+        Returns:
+            str: The generated table as a string.
+
+        Examples:
+            >>> self.log_table(['Header1', 'Header2'], [['row1col1', 'row1col2'], ['row2col1', 'row2col2']], table_name="my_table")
+        """
+        table_name = kwargs.pop("table_name", None)
+        max_log_entries = kwargs.pop("max_log_entries", None)
+        table = self.helpers.make_table(*args, **kwargs)
+        lines_logged = 0
+        for line in table.splitlines():
+            if max_log_entries is not None and lines_logged > max_log_entries:
+                break
+            self.info(line)
+            lines_logged += 1
+        if table_name is not None:
+            date = self.helpers.make_date()
+            filename = self.scan.home / f"{self.helpers.tagify(table_name)}-table-{date}.txt"
+            with open(filename, "w") as f:
+                f.write(table)
+            self.verbose(f"Wrote {table_name} to {filename}")
+        return table
+
+    def _is_graph_important(self, event):
+        return self.preserve_graph and getattr(event, "_graph_important", False) and not getattr(event, "_omit", False)
+
+    @property
+    def preserve_graph(self):
+        preserve_graph = self.config.get("preserve_graph", None)
+        if preserve_graph is None:
+            preserve_graph = self._preserve_graph
+        return preserve_graph
+
+    def debug(self, *args, trace=False, **kwargs):
+        """Logs debug messages and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.debug("This is a debug message")
+            >>> self.debug("This is a debug message with a trace", trace=True)
+        """
+        self.log.debug(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def verbose(self, *args, trace=False, **kwargs):
+        """Logs messages and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.verbose("This is a verbose message")
+            >>> self.verbose("This is a verbose message with a trace", trace=True)
+        """
+        self.log.verbose(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def hugeverbose(self, *args, trace=False, **kwargs):
+        """Logs a whole message in emboldened white text, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.hugeverbose("This is a huge verbose message")
+            >>> self.hugeverbose("This is a huge verbose message with a trace", trace=True)
+        """
+        self.log.hugeverbose(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def info(self, *args, trace=False, **kwargs):
+        """Logs informational messages and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.info("This is an informational message")
+            >>> self.info("This is an informational message with a trace", trace=True)
+        """
+        self.log.info(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def hugeinfo(self, *args, trace=False, **kwargs):
+        """Logs a whole message in emboldened blue text, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.hugeinfo("This is a huge informational message")
+            >>> self.hugeinfo("This is a huge informational message with a trace", trace=True)
+        """
+        self.log.hugeinfo(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def success(self, *args, trace=False, **kwargs):
+        """Logs a success message, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.success("Operation completed successfully")
+            >>> self.success("Operation completed with a trace", trace=True)
+        """
+        self.log.success(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def hugesuccess(self, *args, trace=False, **kwargs):
+        """Logs a whole message in emboldened green text, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to False.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.hugesuccess("This is a huge success message")
+            >>> self.hugesuccess("This is a huge success message with a trace", trace=True)
+        """
+        self.log.hugesuccess(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def warning(self, *args, trace=True, **kwargs):
+        """Logs a warning message, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to True.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.warning("This is a warning message")
+            >>> self.warning("This is a warning message with a trace", trace=False)
+        """
+        self.log.warning(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def hugewarning(self, *args, trace=True, **kwargs):
+        """Logs a whole message in emboldened orange text, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to True.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.hugewarning("This is a huge warning message")
+            >>> self.hugewarning("This is a huge warning message with a trace", trace=False)
+        """
+        self.log.hugewarning(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def error(self, *args, trace=True, **kwargs):
+        """Logs an error message, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to True.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.error("This is an error message")
+            >>> self.error("This is an error message with a trace", trace=False)
+        """
+        self.log.error(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    def trace(self, msg=None):
+        """Logs the stack trace of the most recently caught exception.
+
+        This method captures the type, value, and traceback of the most recent exception and logs it using the trace level. It is typically used for debugging purposes.
+
+        Anything logged using this method will always be written to the scan's `debug.log`, even if debugging is not enabled.
+
+        Examples:
+            >>> try:
+            >>>     1 / 0
+            >>> except ZeroDivisionError:
+            >>>     self.trace()
+        """
+        if msg is None:
+            e_type, e_val, e_traceback = exc_info()
+            if e_type is not None:
+                self.log.trace(traceback.format_exc())
+        else:
+            self.log.trace(msg)
+
+    def critical(self, *args, trace=True, **kwargs):
+        """Logs a whole message in emboldened red text, and optionally the stack trace of the most recent exception.
+
+        Args:
+            *args: Variable-length argument list to pass to the logger.
+            trace (bool, optional): Whether to log the stack trace of the most recently caught exception. Defaults to True.
+            **kwargs: Arbitrary keyword arguments to pass to the logger.
+
+        Examples:
+            >>> self.critical("This is a critical message")
+            >>> self.critical("This is a critical message with a trace", trace=False)
+        """
+        self.log.critical(*args, extra={"scan_id": self.scan.id}, **kwargs)
+        if trace:
+            self.trace()
+
+    @classmethod
+    def help_text(cls):
+        """
+        Returns a string containing help text for the module.
+        This includes the module's description, metadata, events, flags, and available options.
+        """
+        from pydantic_core import PydanticUndefined
+
+        # Retrieve the module's metadata, events, and flags
+        meta = getattr(cls, "meta", {})
+        watched_events = getattr(cls, "watched_events", [])
+        produced_events = getattr(cls, "produced_events", [])
+        flags = getattr(cls, "flags", [])
+
+        help_text = "\n" + "=" * 40 + "\n"
+        help_text += f"Module Help: {cls.__name__}\n"
+        help_text += "=" * 40 + "\n\n"
+
+        for key, value in meta.items():
+            help_text += f"{key.replace('_', ' ').title()}: {value}\n"
+
+        help_text += "\nWatched Events:\n"
+        help_text += "  " + ", ".join(watched_events) + "\n" if watched_events else "  None\n"
+
+        help_text += "\nProduced Events:\n"
+        help_text += "  " + ", ".join(produced_events) + "\n" if produced_events else "  None\n"
+
+        help_text += "\nFlags:\n"
+        help_text += "  " + ", ".join(flags) + "\n" if flags else "  None\n"
+
+        # Options come from the module's `class Config`; show only its own declared fields
+        # (mirrors `--list-module-options`), not inherited universal options.
+        config_cls = getattr(cls, "Config", None)
+        own_options = (
+            [name for name in getattr(config_cls, "__annotations__", {}) if name in config_cls.model_fields]
+            if config_cls is not None
+            else []
+        )
+        help_text += "\nOptions:\n"
+        if own_options:
+            for option in sorted(own_options):
+                field = config_cls.model_fields[option]
+                default_value = field.get_default(call_default_factory=True)
+                if default_value is PydanticUndefined:
+                    default_value = ""
+                description = field.description or "No description available."
+                help_text += f"  - {option}:\n"
+                help_text += f"      Description: {description}\n"
+                help_text += f"      Default: {default_value}\n"
+        else:
+            help_text += "  No options available."
+
+        return help_text
+
+
+class BaseInterceptModule(BaseModule):
+    """
+    An Intercept Module is a special type of high-priority module that gets early access to events.
+
+    If you want your module to tag or modify an event before it's distributed to the scan, it should
+    probably be an intercept module.
+
+    Examples of intercept modules include `dns` (for DNS resolution and wildcard detection)
+    and `cloud` (for detection and tagging of cloud assets).
+    """
+
+    accept_dupes = True
+    accept_url_special = True
+    _intercept = True
+
+    async def _worker(self):
+        try:
+            async with self.scan._acatch(context=self._worker, unhandled_is_critical=True):
+                while not self.scan.stopping and not self.errored:
+                    try:
+                        if self.incoming_event_queue is not False:
+                            incoming = await self.get_incoming_event()
+                            try:
+                                event, kwargs = incoming
+                            except ValueError:
+                                event = incoming
+                                kwargs = {}
+                        else:
+                            self.debug("Event queue is in bad state")
+                            break
+                    except asyncio.queues.QueueEmpty:
+                        await asyncio.sleep(0.1)
+                        continue
+
+                    if event.type == "FINISHED":
+                        context = f"{self.name}.finish()"
+                        async with self.scan._acatch(context), self._task_counter.count(context):
+                            await self.finish()
+                        continue
+
+                    acceptable = True
+                    # precheck/postcheck must be counted so the module isn't marked finished
+                    # while events are mid-check (is_finished reads _task_counter.value)
+                    async with self._task_counter.count(f"event_precheck({event})"):
+                        precheck_pass, reason = self._event_precheck(event)
+                    if not precheck_pass:
+                        acceptable = False
+                    else:
+                        async with self._task_counter.count(f"event_postcheck({event})"):
+                            postcheck_pass, reason = await self._event_postcheck(event)
+                        if not postcheck_pass:
+                            self.debug(f"Not intercepting {event} because postcheck failed ({reason})")
+                            acceptable = False
+
+                    # whether to pass the event on to the rest of the scan
+                    # defaults to true, unless handle_event returns False
+                    forward_event = True
+                    forward_event_reason = ""
+
+                    if acceptable:
+                        context = f"{self.name}.handle_event({event})"
+                        self.scan.stats.event_consumed(event, self)
+                        self.debug(f"Intercepting {event}")
+                        try:
+                            forward_event = await self.run_task(self.handle_event(event, **kwargs), context)
+                        except asyncio.CancelledError:
+                            self.debug(f"{context} was cancelled")
+                            continue
+                        with suppress(ValueError, TypeError):
+                            forward_event, forward_event_reason = forward_event
+
+                        if forward_event is False:
+                            self.debug(f"Not forwarding {event} because {forward_event_reason}")
+                            continue
+
+                    await self.forward_event(event, kwargs)
+
+        except asyncio.CancelledError:
+            raise
+        except RuntimeError as e:
+            self.trace(f"RuntimeError in intercept module {self.name}: {e}")
+        except BaseException as e:
+            if self.helpers.in_exception_chain(e, (KeyboardInterrupt,)):
+                await self.scan.async_stop()
+            else:
+                self.critical(f"Critical failure in intercept module {self.name}: {e}")
+                self.critical(traceback.format_exc())
+
+        self.log.trace("Worker stopped")
+
+    async def get_incoming_event(self):
+        """
+        Get an event from this module's incoming event queue
+        """
+        return await self.incoming_event_queue.get()
+
+    async def forward_event(self, event, kwargs):
+        """
+        Used for forwarding the event on to the next intercept module
+        """
+        await self.outgoing_event_queue.put((event, kwargs))
+
+    async def queue_outgoing_event(self, event, **kwargs):
+        """
+        Used by emit_event() to raise new events to the scan
+        """
+        # if this was a normal module, we'd put it in the outgoing queue
+        # but because it's an intercept module, we need to queue it at the scan's ingress
+        await self.scan.ingress_module.queue_event(event, kwargs)
+
+    async def queue_event(self, event, kwargs=None):
+        """
+        Put an event in this module's incoming event queue
+        """
+        if kwargs is None:
+            kwargs = {}
+        try:
+            self.incoming_event_queue.put_nowait((event, kwargs))
+        except AttributeError:
+            self.debug("Not in an acceptable state to queue incoming event")

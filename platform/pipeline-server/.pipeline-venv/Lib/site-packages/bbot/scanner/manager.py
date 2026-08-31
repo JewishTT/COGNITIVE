@@ -1,0 +1,294 @@
+import asyncio
+from contextlib import suppress
+from radixtarget import host_size_key
+
+from bbot.modules.base import BaseInterceptModule
+
+
+class ScanIngress(BaseInterceptModule):
+    """
+    This is always the first intercept module in the chain, responsible for basic scope checks
+
+    It has its own incoming queue, but will also pull events from modules' outgoing queues
+    """
+
+    watched_events = ["*"]
+    # accept all events regardless of scope distance
+    scope_distance_modifier = None
+    _name = "_scan_ingress"
+    _qsize = -1
+
+    @property
+    def priority(self):
+        # we are the highest priority
+        return -99
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._module_priority_weights = None
+        self._non_intercept_modules = None
+        # track incoming duplicates module-by-module (for `suppress_dupes` attribute of modules)
+        self.incoming_dup_tracker = set()
+
+    async def init_events(self, event_seeds=None):
+        """
+        Initializes events by seeding the scanner with target events and distributing them for further processing.
+
+        Notes:
+            - This method populates the event queue with initial target events.
+            - It also marks the Scan object as finished with initialization by setting `_finished_init` to True.
+        """
+        async with (
+            self.scan._acatch(self.init_events, unhandled_is_critical=True),
+            self._task_counter.count(self.init_events),
+        ):
+            if event_seeds is None:
+                event_seeds = self.scan.target.seeds.event_seeds
+            root_event = self.scan.root_event
+            event_seeds = sorted(event_seeds, key=lambda e: (host_size_key(str(e.host)), e.data))
+            # queue root scan event
+            await self.queue_event(root_event, {})
+            target_module = self.scan._make_dummy_module(name="SEED", _type="SEED")
+            # queue each seed in turn
+            for event_seed in event_seeds:
+                event = self.scan.make_event(
+                    event_seed.data,
+                    event_seed.type,
+                    parent=root_event,
+                    module=target_module,
+                    context=f"Scan {self.scan.name} seeded with " + "{event.type}: {event.pretty_string}",
+                    tags=["seed"],
+                )
+                # If the seed is also in the target scope, add the target tag
+                if self.scan.in_target(event):
+                    event.add_tag("target")
+                self.verbose(f"Seed: {event}")
+                # don't fill up the queue with too many events
+                while self.incoming_event_queue.qsize() > 100:
+                    await asyncio.sleep(0.2)
+                await self.queue_event(event, {})
+            await asyncio.sleep(0.1)
+            self.scan._finished_init = True
+
+    async def handle_event(self, event, **kwargs):
+        # don't accept dummy events
+        if event._dummy:
+            return False, "cannot emit dummy event"
+
+        # don't accept events with self as parent
+        if not event.type == "SCAN":
+            if event == event.get_parent():
+                return False, "event's parent is itself"
+            if not event.discovery_context:
+                self.warning(f"Event {event} has no discovery context")
+
+        # don't accept duplicates
+        if self.is_incoming_duplicate(event, add=True):
+            if not event._graph_important:
+                return False, "event was already emitted by its module"
+            else:
+                self.debug(
+                    f"Event {event} was already emitted by its module, but it's graph-important so it gets a pass"
+                )
+
+        # update event's scope distance based on its parent
+        event.scope_distance = event.parent.scope_distance + 1
+
+        # special handling of URL extensions
+        url_extension = getattr(event, "url_extension", None)
+        if url_extension is not None:
+            # blacklist by extension
+            if url_extension in self.scan.url_extension_blacklist:
+                self.debug(
+                    f"Blacklisting {event} because its extension (.{url_extension}) is blacklisted in the config"
+                )
+                event.add_tag("blacklisted")
+
+        # main scan blacklist
+        host_filterable = getattr(event, "host_filterable", None)
+        event_blacklisted = False
+        if host_filterable:
+            event_blacklisted = self.scan.blacklisted(host_filterable)
+
+        # reject all blacklisted events
+        if event_blacklisted or "blacklisted" in event.tags:
+            return False, "event is blacklisted"
+
+        # Scope shepherding
+        # here is where we make sure in-scope events are set to their proper scope distance
+
+        if event.host:
+            if self.scan.in_target(event):
+                self.debug(f"Making {event} in-scope because its main host matches the scan target")
+                event.scope_distance = 0
+
+        # nerf event's priority if it's not in scope
+        event.module_priority += event.scope_distance
+
+    @property
+    def non_intercept_modules(self):
+        if self._non_intercept_modules is None:
+            self._non_intercept_modules = [m for m in self.scan.modules.values() if not m._intercept]
+        return self._non_intercept_modules
+
+    @property
+    def incoming_queues(self):
+        queues = [self.incoming_event_queue] + [m.outgoing_event_queue for m in self.non_intercept_modules]
+        return [q for q in queues if q is not False]
+
+    @property
+    def module_priority_weights(self):
+        if not self._module_priority_weights:
+            # we subtract from six because lower priorities == higher weights
+            priorities = [5] + [6 - m.priority for m in self.non_intercept_modules]
+            self._module_priority_weights = priorities
+        return self._module_priority_weights
+
+    async def get_incoming_event(self):
+        # memory-pressure backpressure: scan-level delay scales 0s→5s as memory crosses 90→95%.
+        # delay is 0 in the common case so this is a near-free check.
+        if self.scan._ingress_delay > 0:
+            await asyncio.sleep(self.scan._ingress_delay)
+        for q in self.helpers.weighted_shuffle(self.incoming_queues, self.module_priority_weights):
+            try:
+                return q.get_nowait()
+            except (asyncio.queues.QueueEmpty, AttributeError):
+                continue
+        raise asyncio.queues.QueueEmpty()
+
+    async def _event_postcheck(self, event):
+        return await self._event_postcheck_inner(event)
+
+    def is_incoming_duplicate(self, event, add=False):
+        """
+        Calculate whether an event is a duplicate in the context of the module that emitted it
+        This will return True if the event's parent module has raised the event before.
+        """
+        try:
+            event_hash = event.module._outgoing_dedup_hash(event)
+        except AttributeError:
+            module_name = str(getattr(event, "module", ""))
+            event_hash = hash((event, module_name))
+        is_dup = event_hash in self.incoming_dup_tracker
+        if add:
+            self.incoming_dup_tracker.add(event_hash)
+        suppress_dupes = getattr(event.module, "suppress_dupes", True)
+        if suppress_dupes and is_dup:
+            return True
+        return False
+
+
+class ScanEgress(BaseInterceptModule):
+    """
+    This is always the last intercept module in the chain, responsible for executing and acting on the
+    `abort_if` and `on_success_callback` functions.
+    """
+
+    watched_events = ["*"]
+    # accept all events regardless of scope distance
+    scope_distance_modifier = None
+    _name = "_scan_egress"
+
+    @property
+    def priority(self):
+        # we are the lowest priority
+        return 99
+
+    async def handle_event(self, event, **kwargs):
+        abort_if = kwargs.pop("abort_if", None)
+        on_success_callback = kwargs.pop("on_success_callback", None)
+
+        # mark omitted event types
+        # we could do this all in the output module's filter_event(), but we mark it here permanently so the events' .get_parent() can factor in the omission, and skip over omitted parents
+        omitted_event_type = event.type in self.scan.omitted_event_types
+        is_target = "target" in event.tags
+        if omitted_event_type and not is_target:
+            self.debug(f"Making {event} omitted because its type is omitted in the config")
+            event._omit = True
+
+        # make event internal if it's above our configured report distance
+        event_in_report_distance = event.scope_distance <= self.scan.scope_report_distance
+        event_will_be_output = event.always_emit or event_in_report_distance
+
+        # if an event isn't being re-emitted for output, we may want to make it internal
+        if not event._graph_important:
+            if not event_will_be_output and not event.internal:
+                self.debug(
+                    f"Making {event} internal because its scope_distance ({event.scope_distance}) > scope_report_distance ({self.scan.scope_report_distance})"
+                )
+                event.internal = True
+
+            # mark special URLs (e.g. Javascript) as internal so they don't get output except when they're critical to the graph
+            if event.type.startswith("URL") and not event.internal:
+                extension = getattr(event, "url_extension", "")
+                if extension in self.scan.url_extension_special:
+                    self.debug(f"Making {event} internal because it is a special URL (extension {extension})")
+                    event.internal = True
+
+        # custom callback - abort event emission if it returns true
+        abort_result = False
+        if callable(abort_if):
+            async with self.scan._acatch(context=abort_if):
+                abort_result = await self.scan.helpers.execute_sync_or_async(abort_if, event)
+            msg = f"{event.module}: not raising event {event} due to custom criteria in abort_if()"
+            with suppress(ValueError, TypeError):
+                abort_result, reason = abort_result
+                msg += f": {reason}"
+            if abort_result:
+                return False, msg
+
+        if event._suppress_chain_dupes:
+            for parent in event.get_parents():
+                if parent == event:
+                    return False, f"an identical parent {event} was found, and _suppress_chain_dupes=True"
+
+        # if we discovered something interesting from an internal event,
+        # make sure we preserve its chain of parents
+        # here we retroactively resurrect any interesting internal events that led to this discovery
+        # "interesting" meaning any event types that aren't omitted in the config
+        # (by using .get_parent() instead of .parent, we're intentionally skipping over omitted events)
+        parent = event.get_parent()
+        event_is_graph_worthy = (not event.internal) or event._graph_important
+        parent_is_graph_worthy = (not parent.internal) or parent._graph_important
+        if event_is_graph_worthy and not parent_is_graph_worthy:
+            parent_in_report_distance = parent.scope_distance <= self.scan.scope_report_distance
+            self.debug(f"parent {parent} in report distance: {parent_in_report_distance}")
+            if parent_in_report_distance:
+                self.debug(f"setting parent {parent} internal to False")
+                parent.internal = False
+            if not parent._graph_important:
+                self.debug(f"Re-queuing internal event {parent} with parent {event} to prevent graph orphan")
+                parent._graph_important = True
+                await self.emit_event(parent)
+
+        # run success callback before distributing event (so it can add tags, etc.)
+        if callable(on_success_callback):
+            async with self.scan._acatch(context=on_success_callback):
+                await self.scan.helpers.execute_sync_or_async(on_success_callback, event)
+
+    async def forward_event(self, event, kwargs):
+        """
+        Queue event with modules
+        """
+        # absorb event into the word cloud if it's in scope
+        if -1 < event.scope_distance < 1:
+            self.scan.word_cloud.absorb_event(event)
+
+        # Hold a sentinel on _module_consumers during distribution so it
+        # never transiently hits 0 between sequential queue_event() awaits
+        # (which would let a fast module's _minimize() strip fields that
+        # slower modules still need).
+        event._module_consumers += 1
+        for module in self.scan.modules.values():
+            # don't distribute events to intercept modules
+            if module._intercept:
+                continue
+            # graph-important events are duplicates re-emitted only to preserve graph structure.
+            # a module that isn't graph-preserving and doesn't accept dupes would just drop them
+            # at its postcheck, so skip queueing entirely and avoid the churn (outcome unchanged)
+            if event._graph_important and not (module.preserve_graph or module.accept_dupes):
+                continue
+            await module.queue_event(event)
+
+        # release the sentinel; _minimize() decrements and strips if count hits 0
+        event._minimize()

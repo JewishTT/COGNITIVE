@@ -1,0 +1,11 @@
+{
+  "name": "pipeline-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "God's Eye View — 0-слой: пайплайн первичного сбора данных (BBOT / theHarvester / sherlock / maigret / snscrape / TGSpyder / SearXNG → regex+spaCy+exiftool → Neo4j)",
+  "scripts": {
+    "start": "node index.mjs",
+    "dev": "node index.mjs"
+  }
+}

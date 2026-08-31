@@ -1,0 +1,213 @@
+import json
+import logging
+import math
+import re
+from datetime import datetime, timezone
+from http.cookies import SimpleCookie
+
+def import_cookiejar(filename):
+    from http.cookiejar import MozillaCookieJar
+    cookies_obj = MozillaCookieJar(filename)
+    cookies_obj.load(ignore_discard=True, ignore_expires=True)
+    cookies = {}
+
+    for domain in cookies_obj._cookies.values():
+        for key, cookie in list(domain.values())[0].items():
+            cookies[key] = cookie.value
+    return cookies
+
+
+def parse_cookies(cookies_str):
+    cookies = SimpleCookie()
+    cookies.load(cookies_str)
+    logging.debug(cookies)
+    return {key: morsel.value for key, morsel in cookies.items()}
+
+
+def join_cookies(cookies: dict):
+    return ' ;'.join(f'{k}={v}' for k, v in cookies.items())
+
+
+def check_empty_object(res):
+    return res if res or type(res) == bool else None
+
+
+def extract_facebook_uid(link):
+    avatar_re = re.search(r'graph.facebook.com/(\w+)/picture', link)
+    if avatar_re:
+        return avatar_re.group(1)
+    return None
+
+
+def get_yandex_profile_pic(default_avatar_id):
+    url = 'https://avatars.mds.yandex.net/get-yapic/0/0-0/islands-300'
+    if default_avatar_id:
+        default_avatar_id = default_avatar_id.replace('user_avatar/yapic/', '')
+        url = f'https://avatars.mds.yandex.net/get-yapic/{default_avatar_id}/islands-200'
+    return url
+
+def decode_ya_str(val):
+    try:
+        return val.encode('iso-8859-1').decode('utf-8')
+    except:
+        return val
+
+
+def enrich_link(html_url):
+    fixed_url = html_url.lstrip('/')
+    if fixed_url and not fixed_url.startswith('http'):
+        fixed_url = 'https://' + fixed_url
+    return fixed_url
+
+
+# support timestamp with milliseconds
+# coming to common UTC timezone with print it
+def parse_datetime(t):
+    if not t:
+        return ''
+    elif len(str(t)) < 10:
+        t = math.floor(datetime.today().timestamp()) - t
+
+    if len(str(t)) == 10 and not '-' in str(t):
+        return datetime.fromtimestamp(int(t), tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
+    elif len(str(t)) == 10 and '-' in str(t):
+        return datetime.strptime(t, '%Y-%m-%d').strftime('%Y-%m-%d %H:%M:%S %Z')
+    elif len(str(t)) == 13:
+        return datetime.fromtimestamp(float(t)/ 1000.0, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S.{} %Z'.format(str(t)[-3:]))
+    
+    return t
+  
+
+def extract_digits(text):
+    digits_re = re.search(r'\d+', text)
+    if digits_re:
+        return digits_re[0]
+    return ''
+
+
+def get_ucoz_email(text):
+    if text != 'Адрес скрыт':
+        return text
+    return ''
+
+
+def get_ucoz_userlink(user_dom_node):
+    prompt = user_dom_node.next_sibling.next_sibling.get('onclick')
+    user_link = prompt.split("'")[-2]
+    return user_link
+
+
+def get_ucoz_domain(user_dom_node):
+    return get_ucoz_userlink(user_dom_node).rsplit('/', 2)[0]
+
+
+def get_ucoz_image(dom):
+    url = dom.find('span', class_='user_avatar').find('img').get('src')
+    if url.startswith('http'):
+        return url
+    domain = get_ucoz_domain(dom.find('div', string='Пользователь:'))
+    return domain + url
+
+
+def get_ucoz_uid_node(dom):
+    return dom.find('b', string='uID профиль') or dom.find('b', string='uNet профиль')
+
+def extract_periscope_uid(text):
+    userId = re.search(r'"userId":"([\w\d]*)"}', text)
+    return userId.group(1)
+    
+def get_mymail_uid(username):
+    # TODO: move to external function
+    import requests
+    req = requests.get('http://appsmail.ru/platform/mail/' + username)
+    return req.json()['uid']
+
+
+_GRAVATAR_BARE_ROOT_RE = re.compile(
+    r'^https?://(www\.)?gravatar\.com/?$',
+    re.IGNORECASE,
+)
+
+
+def is_bare_gravatar_root_url(url):
+    """True if url is only the Gravatar marketing homepage, not an /avatar/{hash} URL."""
+    if not url or not isinstance(url, str):
+        return False
+    return bool(_GRAVATAR_BARE_ROOT_RE.match(url.strip()))
+
+
+def is_valid_gravatar_email_hash(value):
+    if not value or not isinstance(value, str):
+        return False
+    v = value.lower()
+    return len(v) == 32 and all(c in '0123456789abcdef' for c in v)
+
+
+def imgur_profile_avatar_url(username):
+    """Stable Imgur profile avatar URL (image/png when fetched)."""
+    if not username:
+        return ''
+    return f'https://imgur.com/user/{username}/avatar'
+
+
+def safe_deep_get(obj, *keys, default=None):
+    """Traverse nested dicts/lists without raising on missing keys.
+
+    >>> safe_deep_get({'a': {'b': [1, 2]}}, 'a', 'b', 0)
+    1
+    >>> safe_deep_get({}, 'a', 'b') is None
+    True
+    """
+    current = obj
+    for key in keys:
+        try:
+            current = current[key]
+        except (KeyError, IndexError, TypeError):
+            return default
+    return current
+
+
+NEXT_DATA_RE = re.compile(
+    r'<script id="__NEXT_DATA__" type="application/json"[^>]*>([\s\S]+?)</script>'
+)
+
+
+def extract_next_data(html):
+    """Extract and parse __NEXT_DATA__ JSON from a Next.js page.
+
+    Returns the parsed dict, or {} if not found / invalid.
+    """
+    m = NEXT_DATA_RE.search(html) if isinstance(html, str) else None
+    if not m:
+        return {}
+    try:
+        return json.loads(m.group(1))
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def next_data_page_props(html, *subkeys):
+    """Shortcut: parse __NEXT_DATA__ and return props.pageProps[subkey1][subkey2]...
+
+    Common pattern for Next.js sites (SlideShare, CSSBattle, Linktree, etc.).
+    Returns the value as a JSON string (for the extract_json pipeline).
+    """
+    data = extract_next_data(html) if isinstance(html, str) else html
+    result = safe_deep_get(data, 'props', 'pageProps', *subkeys, default={})
+    return json.dumps(result) if not isinstance(result, str) else result
+
+
+def lnk_bio_next_props(next_data):
+    """Pick link-in-bio profile dict from Next.js __NEXT_DATA__ (structure varies by deploy)."""
+    if not isinstance(next_data, dict):
+        return {}
+    pp = next_data.get('props', {}).get('pageProps', {})
+    if not isinstance(pp, dict):
+        return {}
+    for key in ('profile', 'user', 'account', 'data'):
+        v = pp.get(key)
+        if isinstance(v, dict) and any(
+            v.get(k) for k in ('username', 'displayName', 'name', 'links', 'bio')
+        ):
+            return v
+    return pp

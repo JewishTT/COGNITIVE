@@ -1,0 +1,114 @@
+import multiprocessing
+from pathlib import Path
+from .base import BaseModule
+from badsecrets.base import carve_all_modules
+from bbot.core.config.models import BaseModuleConfig, Field
+from typing import Optional
+
+
+class badsecrets(BaseModule):
+    watched_events = ["HTTP_RESPONSE"]
+    produced_events = ["FINDING", "TECHNOLOGY"]
+    flags = ["safe", "active", "web"]
+    meta = {
+        "description": "Library for detecting known or weak secrets across many web frameworks",
+        "created_date": "2022-11-19",
+        "author": "@liquidsec",
+    }
+
+    class Config(BaseModuleConfig):
+        custom_secrets: Optional[str] = Field(None, description="Include custom secrets loaded from a local file")
+
+    deps_pip = ["badsecrets~=1.2.1"]
+
+    async def setup(self):
+        self.custom_secrets = None
+        custom_secrets = self.config.get("custom_secrets", None)
+        if custom_secrets:
+            secrets_path = Path(custom_secrets).expanduser()
+            if secrets_path.is_file():
+                self.custom_secrets = custom_secrets
+                self.info(f"Successfully loaded secrets file [{custom_secrets}]")
+            else:
+                self.warning(f"custom secrets file [{custom_secrets}] is not valid")
+                return False, "Custom secrets file not valid"
+        return True
+
+    @property
+    def _module_threads(self):
+        return min(4, max(1, multiprocessing.cpu_count() - 1))
+
+    async def handle_event(self, event):
+        resp_body = event.body
+        resp_headers = event.data.get("header", None)
+        resp_cookies = {}
+        if resp_headers:
+            resp_cookies_raw = resp_headers.get("set_cookie", None)
+            if resp_cookies_raw:
+                if "," in resp_cookies_raw:
+                    resp_cookies_list = resp_cookies_raw.split(",")
+                else:
+                    resp_cookies_list = [resp_cookies_raw]
+                for c in resp_cookies_list:
+                    c2 = c.lstrip(";").strip().split(";")[0].split("=")
+                    if len(c2) == 2:
+                        resp_cookies[c2[0]] = c2[1]
+        if resp_body or resp_cookies:
+            try:
+                r_list = await self.helpers.run_in_executor_mp(
+                    carve_all_modules,
+                    body=resp_body,
+                    headers=resp_headers,
+                    cookies=resp_cookies,
+                    url=event.url or None,
+                    custom_resource=self.custom_secrets,
+                )
+            except Exception as e:
+                self.warning(f"Error processing {event}: {e}")
+                return
+            if r_list:
+                for r in r_list:
+                    if r["type"] == "SecretFound":
+                        data = {
+                            "severity": r["description"]["severity"],
+                            "name": "BadSecrets - Known Secret",
+                            "description": f"Known Secret Found. Secret Type: [{r['description']['secret']}] Secret: [{r['secret']}] Product Type: [{r['description']['product']}] Product: [{self.helpers.truncate_string(r['product'], 2000)}] Detecting Module: [{r['detecting_module']}] Details: [{r['details']}]",
+                            "url": event.url,
+                            "host": str(event.host),
+                            "confidence": "CONFIRMED",
+                        }
+                        await self.emit_event(
+                            data,
+                            "FINDING",
+                            event,
+                            context=f'{{module}}\'s "{r["detecting_module"]}" module found known {r["description"]["product"]} secret ({{event.type}}): "{r["secret"]}"',
+                        )
+                    elif r["type"] == "IdentifyOnly":
+                        # Excavate's JWTExtractor submodule already emits findings for JWT existence.
+                        # Only vulnerable (SecretFound) JWT results are worth emitting from badsecrets.
+                        if r["detecting_module"] == "Generic_JWT":
+                            continue
+                        # There is little value to presenting a non-vulnerable asp.net viewstate/resource, as it is not crackable without a Matrioshka brain. Just emit a technology instead.
+                        if r["detecting_module"] in ("ASPNET_Viewstate", "ASPNET_Resource"):
+                            technology = "microsoft asp.net"
+                            await self.emit_event(
+                                {"technology": technology, "url": event.url, "host": str(event.host)},
+                                "TECHNOLOGY",
+                                event,
+                                context=f"{{module}} identified {{event.type}}: {technology}",
+                            )
+                        else:
+                            data = {
+                                "name": "BadSecrets - Cryptographic Product",
+                                "description": f"Cryptographic Product identified. Product Type: [{r['description']['product']}] Product: [{self.helpers.truncate_string(r['product'], 2000)}] Detecting Module: [{r['detecting_module']}]",
+                                "url": event.url,
+                                "host": str(event.host),
+                                "severity": "INFO",
+                                "confidence": "CONFIRMED",
+                            }
+                            await self.emit_event(
+                                data,
+                                "FINDING",
+                                event,
+                                context=f'{{module}} identified cryptographic product ({{event.type}}): "{r["description"]["product"]}"',
+                            )

@@ -1,0 +1,22 @@
+description: "XSS-only: enables only the xss submodule with paramminer_getparams and reflected_parameters. POST disabled, no query string collapsing. Example of a focused single-submodule preset."
+
+modules:
+  - http
+  - lightfuzz
+  - paramminer_getparams
+  - reflected_parameters
+  - portfilter
+  
+config:
+  url_querystring_remove: False
+  url_querystring_collapse: False
+  modules:
+    lightfuzz:
+      enabled_submodules: [xss]
+      disable_post: True
+
+conditions:
+  - |
+    {% if config.web.spider_distance == 0 %}
+      {{ warn("The lightfuzz-xss preset works much better with spider enabled! Consider adding 'spider' or 'spider-heavy' preset.") }}
+    {% endif %}

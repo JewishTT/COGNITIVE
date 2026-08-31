@@ -1,0 +1,26 @@
+description: Comprehensive scan for all IIS/.NET specific modules and module settings
+
+
+include:
+  - iis-shortnames
+
+modules:
+  - http
+  - badsecrets
+  - webbrute_shortnames
+  - webbrute
+  - telerik
+  - ajaxpro
+  - dotnetnuke
+  - aspnet_bin_exposure
+
+config:
+  modules:
+    webbrute:
+      extensions: asp,aspx,ashx,asmx,ascx
+      ignore_case: True
+    webbrute_shortnames:
+      find_subwords: True
+    telerik:
+      exploit_RAU_crypto: True
+      include_subdirs: True # Run against every directory, not the default first received URL per-host

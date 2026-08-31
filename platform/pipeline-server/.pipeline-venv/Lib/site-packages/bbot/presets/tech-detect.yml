@@ -1,0 +1,10 @@
+description: Detect technologies via Nuclei, and FingerprintX
+
+modules:
+  - nuclei
+  - fingerprintx
+
+config:
+  modules:
+    nuclei:
+      tags: tech

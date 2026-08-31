@@ -1,0 +1,26 @@
+description: Everything everywhere all at once
+
+include:
+  - subdomain-enum
+  - cloud-enum
+  - code-enum
+  - email-enum
+  - spider
+  - web
+  - paramminer
+  - webbrute
+  - web-screenshots
+  - baddns-heavy
+
+config:
+  modules:
+    dnsbrute:
+      recursive_mutations: true
+    dnscommonsrv:
+      recursive_mutations: true
+    webbrute:
+      avoid_wafs: False
+    wayback:
+      urls: True
+      parameters: True
+      archive: True

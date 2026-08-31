@@ -1,0 +1,196 @@
+from bbot.errors import InteractshError
+from bbot.modules.base import BaseModule
+
+
+class host_header(BaseModule):
+    watched_events = ["HTTP_RESPONSE"]
+    produced_events = ["FINDING"]
+    flags = ["active", "loud", "web-heavy"]
+    meta = {
+        "description": "Try common HTTP Host header spoofing techniques",
+        "created_date": "2022-07-27",
+        "author": "@liquidsec",
+    }
+
+    in_scope_only = True
+    per_hostport_only = True
+
+    async def setup(self):
+        self.subdomain_tags = {}
+        if self.scan.config.get("interactsh_disable", False) is False:
+            try:
+                self.interactsh_instance = self.helpers.interactsh()
+                self.domain = await self.interactsh_instance.register(callback=self.interactsh_callback)
+            except InteractshError as e:
+                self.warning(f"Interactsh failure: {e}")
+                return False
+        else:
+            self.warning("Interactsh is disabled globally. Interaction based detections will be disabled.")
+            self.domain = f"{self.rand_string(12, digits=False)}.com"
+        return True
+
+    def rand_string(self, *args, **kwargs):
+        return self.helpers.rand_string(*args, **kwargs)
+
+    async def interactsh_callback(self, r):
+        full_id = r.get("full-id", None)
+        if full_id:
+            if "." in full_id:
+                match = self.subdomain_tags.get(full_id.split(".")[0])
+                if match is None:
+                    return
+                matched_event = match[0]
+                matched_technique = match[1]
+                protocol = r.get("protocol").upper()
+                confidence = "HIGH" if protocol == "HTTP" else "MEDIUM"
+                await self.emit_event(
+                    {
+                        "host": str(matched_event.host),
+                        "url": matched_event.url,
+                        "name": "Host Header Spoofing",
+                        "description": f"Spoofed Host header ({matched_technique}) [{protocol}] interaction",
+                        "severity": "MEDIUM",
+                        "confidence": confidence,
+                    },
+                    "FINDING",
+                    matched_event,
+                    context=f"{{module}} spoofed host header and induced {{event.type}}: {protocol} interaction",
+                )
+            else:
+                # this is likely caused by something trying to resolve the base domain first and can be ignored
+                self.debug("skipping results because subdomain tag was missing")
+
+    async def finish(self):
+        if self.scan.config.get("interactsh_disable", False) is False:
+            await self.helpers.sleep(5)
+            try:
+                for r in await self.interactsh_instance.poll():
+                    await self.interactsh_callback(r)
+            except InteractshError as e:
+                self.debug(f"Error in interact.sh: {e}")
+
+    async def cleanup(self):
+        if self.scan.config.get("interactsh_disable", False) is False:
+            try:
+                await self.interactsh_instance.deregister()
+                self.debug(
+                    f"successfully deregistered interactsh session with correlation_id {self.interactsh_instance.correlation_id}"
+                )
+            except InteractshError as e:
+                self.warning(f"Interactsh failure: {e}")
+
+    async def handle_event(self, event):
+        # get any set-cookie responses from the response and add them to the request
+        url = event.url
+
+        added_cookies = {}
+
+        for header_values in event.data["header-dict"].values():
+            for header_value in header_values:
+                if header_value.lower() == "set-cookie":
+                    header_split = header_value.split("=")
+                    try:
+                        added_cookies = {header_split[0]: header_split[1]}
+                    except IndexError:
+                        self.debug(f"failed to parse cookie from string {header_value}")
+
+        domain_reflections = []
+
+        # host header replacement
+        technique_description = "standard"
+        self.debug(f"Performing {technique_description} case")
+        subdomain_tag = self.rand_string(4, digits=False)
+        self.subdomain_tags[subdomain_tag] = (event, technique_description)
+        response = await self.helpers.request(
+            url=url,
+            headers={"Host": f"{subdomain_tag}.{self.domain}"},
+            ignore_bbot_global_settings=True,
+            cookies=added_cookies,
+        )
+        if response and self.domain in response.text:
+            domain_reflections.append(technique_description)
+
+        # absolute URL / Host header transposition
+        technique_description = "absolute URL transposition"
+        self.debug(f"Performing {technique_description} case")
+        subdomain_tag = self.rand_string(4, digits=False)
+        self.subdomain_tags[subdomain_tag] = (event, technique_description)
+        response = await self.helpers.request(
+            url=url,
+            request_target=url,
+            cookies=added_cookies,
+        )
+        if response and self.domain in response.text:
+            domain_reflections.append(technique_description)
+
+        # duplicate host header tolerance
+        technique_description = "duplicate host header tolerance"
+        response = await self.helpers.request(
+            url=url,
+            method="HEAD",
+            # Sending duplicate Host headers to test server tolerance.
+            # The fact that it's accepting two host headers is rare enough to note on its own.
+            headers={"Host": ["", str(event.host), str(event.host)]},
+            cookies=added_cookies,
+        )
+
+        if response and response.status_code >= 400 and response.status_code < 500:
+            description = "Duplicate Host Header Tolerated"
+            await self.emit_event(
+                {
+                    "host": str(event.host),
+                    "url": url,
+                    "description": description,
+                    "name": "Duplicate Host Header Tolerated",
+                    "severity": "INFO",
+                    "confidence": "LOW",
+                },
+                "FINDING",
+                event,
+                context=f"{{module}} scanned {event.url} and identified {{event.type}}: {description}",
+            )
+
+        # host header overrides
+        technique_description = "host override headers"
+        self.verbose(f"Performing {technique_description} case")
+        subdomain_tag = self.rand_string(4, digits=False)
+        self.subdomain_tags[subdomain_tag] = (event, technique_description)
+
+        override_headers_list = [
+            "X-Host",
+            "X-Forwarded-Server",
+            "X-Forwarded-Host",
+            "X-Original-Host",
+            "X-Forwarded-For",
+            "X-Host",
+            "X-HTTP-Host-Override",
+            "Forwarded",
+        ]
+        override_headers = {}
+        for oh in override_headers_list:
+            override_headers[oh] = f"{subdomain_tag}.{self.domain}"
+
+        response = await self.helpers.request(
+            url=url,
+            headers=override_headers,
+            cookies=added_cookies,
+        )
+        if response and self.domain in response.text:
+            domain_reflections.append(technique_description)
+
+        # emit all the domain reflections we found
+        for dr in domain_reflections:
+            description = f"Possible Host header injection. Injection technique: {dr}"
+            await self.emit_event(
+                {
+                    "host": str(event.host),
+                    "url": url,
+                    "description": description,
+                    "name": "Possible Host Header Injection",
+                    "severity": "INFO",
+                    "confidence": "LOW",
+                },
+                "FINDING",
+                event,
+                context=f"{{module}} scanned {url} and identified {{event.type}}: {description}",
+            )
