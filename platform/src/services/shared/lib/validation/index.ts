@@ -1,6 +1,6 @@
 // platform/src/services/shared/lib/validation/index.ts
-// [38;5;240mValidation Service for OSINT Data[0m
-// [38;5;240mSTIX/TAXII compliant validation with schemas[0m
+// Validation Service for OSINT Data
+// STIX/TAXII compliant validation with schemas
 
 import {
   StandardGraphNode,
@@ -15,11 +15,11 @@ import {
 } from '../../types';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mValidation Error[0m
+ * Validation Error
  */
 export interface ValidationError {
   field: string;
@@ -32,7 +32,7 @@ export interface ValidationError {
 }
 
 /**
- * [38;5;220mValidation Result[0m
+ * Validation Result
  */
 export interface ValidationResult {
   valid: boolean;
@@ -42,7 +42,7 @@ export interface ValidationResult {
 }
 
 /**
- * [38;5;220mValidation Schema[0m
+ * Validation Schema
  */
 export interface ValidationSchema {
   type: string;
@@ -61,7 +61,7 @@ export interface ValidationSchema {
 }
 
 /**
- * [38;5;220mValidation Rule[0m
+ * Validation Rule
  */
 export interface ValidationRule extends ValidationSchema {
   nullable?: boolean;
@@ -69,7 +69,7 @@ export interface ValidationRule extends ValidationSchema {
 }
 
 /**
- * [38;5;220mValidation Context[0m
+ * Validation Context
  */
 export interface ValidationContext {
   path: string;
@@ -79,7 +79,7 @@ export interface ValidationContext {
 }
 
 /**
- * [38;5;220mValidator Configuration[0m
+ * Validator Configuration
  */
 export interface ValidatorConfig {
   strict?: boolean;
@@ -89,7 +89,7 @@ export interface ValidatorConfig {
 }
 
 // ============================================================================
-// [38;5;220mSTIX VALIDATION SCHEMAS[0m
+// STIX VALIDATION SCHEMAS
 // ============================================================================
 
 const STIX_BASE_SCHEMA: ValidationSchema = {
@@ -154,7 +154,7 @@ const STIX_RELATIONSHIP_SCHEMA: ValidationSchema = {
 };
 
 // ============================================================================
-// [38;5;220mGRAPH VALIDATION SCHEMAS[0m
+// GRAPH VALIDATION SCHEMAS
 // ============================================================================
 
 const GRAPH_NODE_SCHEMA: ValidationSchema = {
@@ -244,11 +244,11 @@ const GRAPH_DATA_SCHEMA: ValidationSchema = {
 };
 
 // ============================================================================
-// [38;5;220mVALIDATION SERVICE[0m
+// VALIDATION SERVICE
 // ============================================================================
 
 /**
- * [38;5;220mValidation Service[0m
+ * Validation Service
  */
 export class ValidationService {
   private config: ValidatorConfig;
@@ -279,18 +279,18 @@ export class ValidationService {
   }
 
   // ==========================================================================
-  // [38;5;220mSCHEMA REGISTRATION[0m
+  // SCHEMA REGISTRATION
   // ==========================================================================
 
   /**
-   * [38;5;220mRegister a custom schema[0m
+   * Register a custom schema
    */
   registerSchema(name: string, schema: ValidationSchema): void {
     this.customSchemas.set(name, schema);
   }
 
   /**
-   * [38;5;220mRegister a custom validator[0m
+   * Register a custom validator
    */
   registerValidator(
     name: string,
@@ -300,11 +300,11 @@ export class ValidationService {
   }
 
   // ==========================================================================
-  // [38;5;220mVALIDATION METHODS[0m
+  // VALIDATION METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mValidate data against a schema[0m
+   * Validate data against a schema
    */
   validate<T>(
     data: T,
@@ -336,7 +336,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate multiple items[0m
+   * Validate multiple items
    */
   validateMany<T>(
     items: T[],
@@ -373,25 +373,25 @@ export class ValidationService {
   }
 
   // ==========================================================================
-  // [38;5;220mSPECIFIC VALIDATIONS[0m
+  // SPECIFIC VALIDATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mValidate a graph node[0m
+   * Validate a graph node
    */
   validateGraphNode(node: StandardGraphNode): ValidationResult {
     return this.validate(node, GRAPH_NODE_SCHEMA);
   }
 
   /**
-   * [38;5;220mValidate a graph edge[0m
+   * Validate a graph edge
    */
   validateGraphEdge(edge: StandardGraphEdge): ValidationResult {
     return this.validate(edge, GRAPH_EDGE_SCHEMA);
   }
 
   /**
-   * [38;5;220mValidate graph data[0m
+   * Validate graph data
    */
   validateGraphData(data: StandardGraphData): ValidationResult {
     const result = this.validate(data, GRAPH_DATA_SCHEMA);
@@ -409,21 +409,21 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate STIX identity[0m
+   * Validate STIX identity
    */
   validateStixIdentity(data: unknown): ValidationResult {
     return this.validate(data, STIX_IDENTITY_SCHEMA);
   }
 
   /**
-   * [38;5;220mValidate STIX relationship[0m
+   * Validate STIX relationship
    */
   validateStixRelationship(data: unknown): ValidationResult {
     return this.validate(data, STIX_RELATIONSHIP_SCHEMA);
   }
 
   /**
-   * [38;5;220mValidate pipeline task[0m
+   * Validate pipeline task
    */
   validatePipelineTask(task: PipelineTask): ValidationResult {
     const schema: ValidationSchema = {
@@ -447,7 +447,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate enrichment input[0m
+   * Validate enrichment input
    */
   validateEnrichmentInput(input: EnrichmentInput): ValidationResult {
     const schema: ValidationSchema = {
@@ -465,7 +465,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate enrichment output[0m
+   * Validate enrichment output
    */
   validateEnrichmentOutput(output: EnrichmentOutput): ValidationResult {
     const schema: ValidationSchema = {
@@ -490,7 +490,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate TDA configuration[0m
+   * Validate TDA configuration
    */
   validateTdaConfiguration(config: TdaConfiguration): ValidationResult {
     const schema: ValidationSchema = {
@@ -512,7 +512,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate TDA result[0m
+   * Validate TDA result
    */
   validateTdaResult(result: TdaResult): ValidationResult {
     const schema: ValidationSchema = {
@@ -590,11 +590,11 @@ export class ValidationService {
   }
 
   // ==========================================================================
-  // [38;5;220mPRIVATE VALIDATION METHODS[0m
+  // PRIVATE VALIDATION METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mValidate against schema recursively[0m
+   * Validate against schema recursively
    */
   private validateAgainstSchema<T>(
     data: T,
@@ -785,7 +785,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate data type[0m
+   * Validate data type
    */
   private validateType<T>(
     data: T,
@@ -810,7 +810,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mGet type of value as string[0m
+   * Get type of value as string
    */
   private getType(value: unknown): string {
     if (value === null) return 'null';
@@ -819,11 +819,11 @@ export class ValidationService {
   }
 
   // ==========================================================================
-  // [38;5;220mCUSTOM VALIDATORS[0m
+  // CUSTOM VALIDATORS
   // ==========================================================================
 
   /**
-   * [38;5;220mValidate STIX ID format[0m
+   * Validate STIX ID format
    */
   private validateStixId(value: unknown, context: ValidationContext): ValidationError | null {
     if (typeof value !== 'string') {
@@ -857,7 +857,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate date-time format (ISO 8601)[0m
+   * Validate date-time format (ISO 8601)
    */
   private validateDateTime(value: unknown, context: ValidationContext): ValidationError | null {
     if (typeof value !== 'string') {
@@ -891,7 +891,7 @@ export class ValidationService {
   }
 
   /**
-   * [38;5;220mValidate URI format[0m
+   * Validate URI format
    */
   private validateUri(value: unknown, context: ValidationContext): ValidationError | null {
     if (typeof value !== 'string') {
@@ -925,7 +925,7 @@ export class ValidationService {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 let validationService: ValidationService | null = null;
@@ -942,7 +942,7 @@ export function resetValidationService(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

@@ -1,6 +1,6 @@
 // platform/src/services/graph/api/index.ts
-// [38;5;240mGraph Service API Client[0m
-// [38;5;240mREST API client for graph operations[0m
+// Graph Service API Client
+// REST API client for graph operations
 
 import {
   StandardGraphData,
@@ -11,14 +11,13 @@ import {
 } from '../../shared/types';
 import { getConfig } from '../../shared/config';
 import { getCacheManager } from '../../shared/lib/cache';
-import { getFallbackManager } from '../../shared/lib/fallback';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mGraph API Configuration[0m
+ * Graph API Configuration
  */
 export interface GraphApiConfig {
   baseUrl: string;
@@ -28,7 +27,7 @@ export interface GraphApiConfig {
 }
 
 /**
- * [38;5;220mCreate Graph Request[0m
+ * Create Graph Request
  */
 export interface CreateGraphRequest {
   name: string;
@@ -37,7 +36,7 @@ export interface CreateGraphRequest {
 }
 
 /**
- * [38;5;220mCreate Graph Response[0m
+ * Create Graph Response
  */
 export interface CreateGraphResponse {
   id: string;
@@ -46,16 +45,15 @@ export interface CreateGraphResponse {
 }
 
 /**
- * [38;5;220mGraph API Client Options[0m
+ * Graph API Client Options
  */
 export interface GraphApiClientOptions {
   config?: GraphApiConfig;
   useCache?: boolean;
-  useFallback?: boolean;
 }
 
 /**
- * [38;5;220mNode Query Options[0m
+ * Node Query Options
  */
 export interface QueryNodesOptions {
   limit?: number;
@@ -66,7 +64,7 @@ export interface QueryNodesOptions {
 }
 
 /**
- * [38;5;220mEdge Query Options[0m
+ * Edge Query Options
  */
 export interface QueryEdgesOptions {
   limit?: number;
@@ -77,16 +75,15 @@ export interface QueryEdgesOptions {
 }
 
 // ============================================================================
-// [38;5;220mGRAPH API CLIENT[0m
+// GRAPH API CLIENT
 // ============================================================================
 
 /**
- * [38;5;220mGraph API Client[0m
+ * Graph API Client
  */
 export class GraphApiClient {
   private config: GraphApiConfig;
   private cacheManager = getCacheManager();
-  private fallbackManager = getFallbackManager();
   private options: GraphApiClientOptions;
 
   constructor(options: GraphApiClientOptions = {}) {
@@ -101,17 +98,16 @@ export class GraphApiClient {
     
     this.options = {
       useCache: options.useCache !== false,
-      useFallback: options.useFallback !== false,
       ...options,
     };
   }
 
   // ==========================================================================
-  // [38;5;220mGRAPH OPERATIONS[0m
+  // GRAPH OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a new graph[0m
+   * Create a new graph
    */
   async createGraph(
     request: CreateGraphRequest
@@ -133,25 +129,12 @@ export class GraphApiClient {
 
       return response;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: `mock_${Date.now()}`,
-              name: request.name,
-              message: 'Fallback: Graph created in offline mode',
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet graph by ID[0m
+   * Get graph by ID
    */
   async getGraph(graphId: string): Promise<StandardGraphData> {
     const cacheKey = this.cacheManager.generateGraphKey(graphId, 'metadata');
@@ -180,23 +163,12 @@ export class GraphApiClient {
 
       return graph;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.fallbackManager.generateMockGraph(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet all graphs[0m
+   * Get all graphs
    */
   async getAllGraphs(
     options?: {
@@ -248,25 +220,12 @@ export class GraphApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              graphs: [],
-              total: 0,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mUpdate graph metadata[0m
+   * Update graph metadata
    */
   async updateGraph(
     graphId: string,
@@ -286,22 +245,12 @@ export class GraphApiClient {
 
       return graph;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: this.fallbackManager.generateMockGraph(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDelete a graph[0m
+   * Delete a graph
    */
   async deleteGraph(graphId: string): Promise<void> {
     try {
@@ -313,21 +262,16 @@ export class GraphApiClient {
         await this.cacheManager.getDefaultBackend().delete(cacheKey);
       }
     } catch (error) {
-      if (this.options.useFallback) {
-        // Just log the error in fallback mode
-        console.warn(`[38;5;208m[GraphApiClient] Failed to delete graph ${graphId}:[0m`, error);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mNODE OPERATIONS[0m
+  // NODE OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mAdd a node to a graph[0m
+   * Add a node to a graph
    */
   async addNode(
     graphId: string,
@@ -347,25 +291,12 @@ export class GraphApiClient {
 
       return createdNode;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: {
-              ...node,
-              id: `mock_${Date.now()}`,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mAdd multiple nodes to a graph[0m
+   * Add multiple nodes to a graph
    */
   async addNodes(
     graphId: string,
@@ -385,25 +316,12 @@ export class GraphApiClient {
 
       return createdNodes;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: nodes.map((node, index) => ({
-              ...node,
-              id: `mock_${Date.now()}_${index}`,
-            })),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet node by ID from a graph[0m
+   * Get node by ID from a graph
    */
   async getNode(
     graphId: string,
@@ -437,28 +355,12 @@ export class GraphApiClient {
 
       return node;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              id: nodeId,
-              name: `Mock Node ${nodeId}`,
-              stixType: 'identity',
-              description: 'Fallback node',
-            } as StandardGraphNode,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet all nodes from a graph[0m
+   * Get all nodes from a graph
    */
   async getNodes(
     graphId: string,
@@ -516,26 +418,12 @@ export class GraphApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              nodes: [],
-              total: 0,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mUpdate a node in a graph[0m
+   * Update a node in a graph
    */
   async updateNode(
     graphId: string,
@@ -558,25 +446,12 @@ export class GraphApiClient {
 
       return node;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: nodeId,
-              ...updates,
-            } as StandardGraphNode,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDelete a node from a graph[0m
+   * Delete a node from a graph
    */
   async deleteNode(
     graphId: string,
@@ -593,21 +468,16 @@ export class GraphApiClient {
         await this.cacheManager.getDefaultBackend().delete(graphCacheKey);
       }
     } catch (error) {
-      if (this.options.useFallback) {
-        // Just log the error in fallback mode
-        console.warn(`[38;5;208m[GraphApiClient] Failed to delete node ${nodeId}:[0m`, error);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mEDGE OPERATIONS[0m
+  // EDGE OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mAdd an edge to a graph[0m
+   * Add an edge to a graph
    */
   async addEdge(
     graphId: string,
@@ -627,25 +497,12 @@ export class GraphApiClient {
 
       return createdEdge;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: {
-              ...edge,
-              id: `mock_${Date.now()}`,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mAdd multiple edges to a graph[0m
+   * Add multiple edges to a graph
    */
   async addEdges(
     graphId: string,
@@ -665,25 +522,12 @@ export class GraphApiClient {
 
       return createdEdges;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: edges.map((edge, index) => ({
-              ...edge,
-              id: `mock_${Date.now()}_${index}`,
-            })),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet edge by ID from a graph[0m
+   * Get edge by ID from a graph
    */
   async getEdge(
     graphId: string,
@@ -717,28 +561,12 @@ export class GraphApiClient {
 
       return edge;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              id: edgeId,
-              source: 'mock_source',
-              target: 'mock_target',
-              relationshipType: 'related-to',
-            } as StandardGraphEdge,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet all edges from a graph[0m
+   * Get all edges from a graph
    */
   async getEdges(
     graphId: string,
@@ -796,26 +624,12 @@ export class GraphApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              edges: [],
-              total: 0,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mUpdate an edge in a graph[0m
+   * Update an edge in a graph
    */
   async updateEdge(
     graphId: string,
@@ -838,25 +652,12 @@ export class GraphApiClient {
 
       return edge;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: edgeId,
-              ...updates,
-            } as StandardGraphEdge,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDelete an edge from a graph[0m
+   * Delete an edge from a graph
    */
   async deleteEdge(
     graphId: string,
@@ -873,21 +674,16 @@ export class GraphApiClient {
         await this.cacheManager.getDefaultBackend().delete(graphCacheKey);
       }
     } catch (error) {
-      if (this.options.useFallback) {
-        // Just log the error in fallback mode
-        console.warn(`[38;5;208m[GraphApiClient] Failed to delete edge ${edgeId}:[0m`, error);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mVERSION OPERATIONS[0m
+  // VERSION OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet all versions of a graph[0m
+   * Get all versions of a graph
    */
   async getVersions(graphId: string): Promise<GraphVersion[]> {
     const cacheKey = this.cacheManager.generateGraphKey(graphId, 'versions');
@@ -918,23 +714,12 @@ export class GraphApiClient {
 
       return versions;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: [],
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mCreate a version of a graph[0m
+   * Create a version of a graph
    */
   async createVersion(
     graphId: string,
@@ -954,27 +739,12 @@ export class GraphApiClient {
 
       return version;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: `version_${Date.now()}`,
-              graphId,
-              timestamp: new Date().toISOString(),
-              ...versionData,
-            } as GraphVersion,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mRestore a graph to a specific version[0m
+   * Restore a graph to a specific version
    */
   async restoreVersion(
     graphId: string,
@@ -993,26 +763,16 @@ export class GraphApiClient {
 
       return graph;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            mockData: this.fallbackManager.generateMockGraph(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mSEARCH OPERATIONS[0m
+  // SEARCH OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mSearch nodes in a graph[0m
+   * Search nodes in a graph
    */
   async searchNodes(
     graphId: string,
@@ -1062,30 +822,16 @@ export class GraphApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withGraphFallback(
-          graphId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              nodes: [],
-              total: 0,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mHTTP METHODS[0m
+  // HTTP METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mGeneric GET request[0m
+   * Generic GET request
    */
   private async get<T>(path: string): Promise<T> {
     const url = `${this.config.baseUrl}${path}`;
@@ -1106,7 +852,7 @@ export class GraphApiClient {
   }
 
   /**
-   * [38;5;220mGeneric POST request[0m
+   * Generic POST request
    */
   private async post<TRequest, TResponse>(
     path: string,
@@ -1131,7 +877,7 @@ export class GraphApiClient {
   }
 
   /**
-   * [38;5;220mGeneric PATCH request[0m
+   * Generic PATCH request
    */
   private async patch<TRequest, TResponse>(
     path: string,
@@ -1156,7 +902,7 @@ export class GraphApiClient {
   }
 
   /**
-   * [38;5;220mGeneric DELETE request[0m
+   * Generic DELETE request
    */
   private async delete(path: string): Promise<void> {
     const url = `${this.config.baseUrl}${path}`;
@@ -1175,7 +921,7 @@ export class GraphApiClient {
   }
 
   /**
-   * [38;5;220mGet request headers[0m
+   * Get request headers
    */
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
@@ -1191,7 +937,7 @@ export class GraphApiClient {
   }
 
   /**
-   * [38;5;220mParse error response[0m
+   * Parse error response
    */
   private async parseError(response: Response): Promise<{ message: string; code?: string }> {
     try {
@@ -1206,7 +952,7 @@ export class GraphApiClient {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 let graphApiClient: GraphApiClient | null = null;
@@ -1223,7 +969,7 @@ export function resetGraphApiClient(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

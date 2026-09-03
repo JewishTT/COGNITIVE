@@ -14,7 +14,7 @@ export const osintStatus = reactive<{
   message: 'Движок Flowsint (Neo4j) — нативный слой платформы',
 })
 
-const API_BASE = '/flowsint-api/api'
+const API_BASE = '/flowsint-api/api/v1'
 
 export const FS_EMAIL = 'admin@ghostseven.io'
 export const FS_PASS = 'Ghost7Admin!2026'
@@ -23,21 +23,17 @@ const TOKEN_KEY = 'flowsint_token'
 let authToken: string | null = localStorage.getItem(TOKEN_KEY)
 let authBusy: Promise<void> | null = null
 
-function toForm(email: string, password: string): string {
-  return `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
-}
-
 async function login(email: string, password: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/auth/token`, {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: toForm(email, password),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => null)
-    throw new Error((err && (err.detail as string)) || `Auth ${res.status}`)
+    throw new Error((err && (err.error as string)) || `Auth ${res.status}`)
   }
-  return (await res.json()).access_token as string
+  return (await res.json()).token as string
 }
 
 async function ensureAuth(): Promise<void> {
@@ -48,7 +44,7 @@ async function ensureAuth(): Promise<void> {
       authToken = await login(FS_EMAIL, FS_PASS)
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
-      if (/Incorrect email or password/.test(msg)) {
+      if (/Invalid credentials/.test(msg) || /401/.test(msg)) {
         await fetch(`${API_BASE}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

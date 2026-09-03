@@ -1,6 +1,6 @@
 // platform/src/services/pipeline/api/index.ts
-// [38;5;240mPipeline Service API Client[0m
-// [38;5;240mREST API client for pipeline operations[0m
+// Pipeline Service API Client
+// REST API client for pipeline operations
 
 import {
   PipelineTask,
@@ -13,14 +13,13 @@ import {
 } from '../../shared/types';
 import { getConfig } from '../../shared/config';
 import { getCacheManager } from '../../shared/lib/cache';
-import { getFallbackManager } from '../../shared/lib/fallback';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mPipeline API Configuration[0m
+ * Pipeline API Configuration
  */
 export interface PipelineApiConfig {
   baseUrl: string;
@@ -30,7 +29,7 @@ export interface PipelineApiConfig {
 }
 
 /**
- * [38;5;220mCreate Pipeline Request[0m
+ * Create Pipeline Request
  */
 export interface CreatePipelineRequest {
   taskType: PipelineTaskType;
@@ -40,7 +39,7 @@ export interface CreatePipelineRequest {
 }
 
 /**
- * [38;5;220mCreate Pipeline Response[0m
+ * Create Pipeline Response
  */
 export interface CreatePipelineResponse {
   taskId: string;
@@ -49,25 +48,23 @@ export interface CreatePipelineResponse {
 }
 
 /**
- * [38;5;220mPipeline API Client Options[0m
+ * Pipeline API Client Options
  */
 export interface PipelineApiClientOptions {
   config?: PipelineApiConfig;
   useCache?: boolean;
-  useFallback?: boolean;
 }
 
 // ============================================================================
-// [38;5;220mPIPELINE API CLIENT[0m
+// PIPELINE API CLIENT
 // ============================================================================
 
 /**
- * [38;5;220mPipeline API Client[0m
+ * Pipeline API Client
  */
 export class PipelineApiClient {
   private config: PipelineApiConfig;
   private cacheManager = getCacheManager();
-  private fallbackManager = getFallbackManager();
   private options: PipelineApiClientOptions;
 
   constructor(options: PipelineApiClientOptions = {}) {
@@ -82,17 +79,16 @@ export class PipelineApiClient {
     
     this.options = {
       useCache: options.useCache !== false,
-      useFallback: options.useFallback !== false,
       ...options,
     };
   }
 
   // ==========================================================================
-  // [38;5;220mPIPELINE OPERATIONS[0m
+  // PIPELINE OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a new pipeline task[0m
+   * Create a new pipeline task
    */
   async createTask(
     request: CreatePipelineRequest
@@ -129,26 +125,12 @@ export class PipelineApiClient {
 
       return response;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              taskId: `mock_${Date.now()}`,
-              status: 'pending',
-              message: 'Fallback: Task created in offline mode',
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet pipeline task by ID[0m
+   * Get pipeline task by ID
    */
   async getTask(taskId: string): Promise<PipelineTask> {
     const cacheKey = this.cacheManager.generatePipelineKey(taskId, 'status');
@@ -177,28 +159,12 @@ export class PipelineApiClient {
 
       return task;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              id: taskId,
-              type: 'enrichment',
-              status: 'failed',
-              error: 'Service unavailable',
-              createdAt: new Date().toISOString(),
-            } as PipelineTask,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet all pipeline tasks[0m
+   * Get all pipeline tasks
    */
   async getAllTasks(
     filters?: {
@@ -254,22 +220,12 @@ export class PipelineApiClient {
 
       return tasks;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: [],
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mCancel a pipeline task[0m
+   * Cancel a pipeline task
    */
   async cancelTask(taskId: string): Promise<PipelineTask> {
     try {
@@ -285,27 +241,12 @@ export class PipelineApiClient {
 
       return task;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: taskId,
-              type: 'enrichment',
-              status: 'cancelled',
-              error: 'Service unavailable',
-              createdAt: new Date().toISOString(),
-            } as PipelineTask,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mRetry a failed pipeline task[0m
+   * Retry a failed pipeline task
    */
   async retryTask(taskId: string): Promise<PipelineTask> {
     try {
@@ -321,26 +262,12 @@ export class PipelineApiClient {
 
       return task;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: taskId,
-              type: 'enrichment',
-              status: 'pending',
-              createdAt: new Date().toISOString(),
-            } as PipelineTask,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDelete a pipeline task[0m
+   * Delete a pipeline task
    */
   async deleteTask(taskId: string): Promise<void> {
     try {
@@ -352,21 +279,16 @@ export class PipelineApiClient {
         await this.cacheManager.getDefaultBackend().delete(cacheKey);
       }
     } catch (error) {
-      if (this.options.useFallback) {
-        // Just log the error in fallback mode
-        console.warn(`[38;5;208m[PipelineApiClient] Failed to delete task ${taskId}:[0m`, error);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mENRICHMENT OPERATIONS[0m
+  // ENRICHMENT OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mExecute enrichment on a target[0m
+   * Execute enrichment on a target
    */
   async enrich(
     input: EnrichmentInput
@@ -403,30 +325,12 @@ export class PipelineApiClient {
 
       return output;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              success: false,
-              data: {},
-              errors: ['Service unavailable'],
-              warnings: ['Using fallback data'],
-              metadata: {
-                fromFallback: true,
-              },
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mExecute multiple enrichments sequentially[0m
+   * Execute multiple enrichments sequentially
    */
   async enrichSequentially(
     inputs: EnrichmentInput[]
@@ -442,7 +346,7 @@ export class PipelineApiClient {
   }
 
   /**
-   * [38;5;220mExecute multiple enrichments in parallel[0m
+   * Execute multiple enrichments in parallel
    */
   async enrichInParallel(
     inputs: EnrichmentInput[]
@@ -452,11 +356,11 @@ export class PipelineApiClient {
   }
 
   // ==========================================================================
-  // [38;5;220mPLUGIN OPERATIONS[0m
+  // PLUGIN OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet all available plugins[0m
+   * Get all available plugins
    */
   async getPlugins(): Promise<PluginMetadata[]> {
     const cacheKey = this.cacheManager.generateKey(
@@ -488,50 +392,24 @@ export class PipelineApiClient {
 
       return plugins;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: [],
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet plugin by name[0m
+   * Get plugin by name
    */
   async getPlugin(name: string): Promise<PluginMetadata | undefined> {
     try {
       const plugin = await this.get<PluginMetadata>(`/plugins/${name}`);
       return plugin;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            mockData: {
-              name,
-              description: 'Mock plugin - service unavailable',
-              version: '1.0.0',
-              enabled: true,
-              type: 'enrichment',
-              config: {},
-            } as PluginMetadata,
-          }
-        );
-        return result.data;
-      }
-      return undefined;
+      throw error;
     }
   }
 
   /**
-   * [38;5;220mEnable a plugin[0m
+   * Enable a plugin
    */
   async enablePlugin(name: string): Promise<PluginMetadata> {
     try {
@@ -550,28 +428,12 @@ export class PipelineApiClient {
 
       return plugin;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            mockData: {
-              name,
-              description: 'Mock plugin - service unavailable',
-              version: '1.0.0',
-              enabled: true,
-              type: 'enrichment',
-              config: {},
-            } as PluginMetadata,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDisable a plugin[0m
+   * Disable a plugin
    */
   async disablePlugin(name: string): Promise<PluginMetadata> {
     try {
@@ -590,32 +452,16 @@ export class PipelineApiClient {
 
       return plugin;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            mockData: {
-              name,
-              description: 'Mock plugin - service unavailable',
-              version: '1.0.0',
-              enabled: false,
-              type: 'enrichment',
-              config: {},
-            } as PluginMetadata,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mHTTP METHODS[0m
+  // HTTP METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mGeneric GET request[0m
+   * Generic GET request
    */
   private async get<T>(path: string): Promise<T> {
     const url = `${this.config.baseUrl}${path}`;
@@ -636,7 +482,7 @@ export class PipelineApiClient {
   }
 
   /**
-   * [38;5;220mGeneric POST request[0m
+   * Generic POST request
    */
   private async post<TRequest, TResponse>(
     path: string,
@@ -661,7 +507,7 @@ export class PipelineApiClient {
   }
 
   /**
-   * [38;5;220mGeneric DELETE request[0m
+   * Generic DELETE request
    */
   private async delete(path: string): Promise<void> {
     const url = `${this.config.baseUrl}${path}`;
@@ -680,7 +526,7 @@ export class PipelineApiClient {
   }
 
   /**
-   * [38;5;220mGet request headers[0m
+   * Get request headers
    */
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
@@ -696,7 +542,7 @@ export class PipelineApiClient {
   }
 
   /**
-   * [38;5;220mParse error response[0m
+   * Parse error response
    */
   private async parseError(response: Response): Promise<{ message: string; code?: string }> {
     try {
@@ -711,7 +557,7 @@ export class PipelineApiClient {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 let pipelineApiClient: PipelineApiClient | null = null;
@@ -728,7 +574,7 @@ export function resetPipelineApiClient(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

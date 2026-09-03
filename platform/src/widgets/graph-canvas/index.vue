@@ -3,16 +3,9 @@
     <!-- Empty State -->
     <template v-if="!sketchId && flowNodes.length === 0">
       <div class="os-graph-empty os-graph-empty-demo">
-        <div class="os-empty-icon">[38;5;214m[0m</div>
-        <p>[38;5;240mStart by creating or selecting a graph[0m</p>
-        <div class="os-empty-actions">
-          <button class="btn os-btn-demo" @click="loadDemo">
-            [38;5;220m[0m Demo: Simplicial Complex
-          </button>
-          <button class="btn os-btn-demo" @click="loadDemoTBB">
-            [38;5;220m[0m Demo: TheBigBrother
-          </button>
-        </div>
+        <div class="os-empty-icon"></div>
+        <p>Start by creating or selecting a graph</p>
+
       </div>
     </template>
 
@@ -21,29 +14,18 @@
       <!-- Toolbar -->
       <div class="os-graph-toolbar">
         <div class="os-toolbar-left">
-          <button 
-            class="btn os-btn-demo" 
-            @click="loadDemo" 
-            v-if="!sketchId" 
-            title="Load Demo Graph"
-          >
-            [38;5;220m[0m Demo Graph
-          </button>
-          <button 
-            class="btn os-btn-demo" 
-            @click="loadDemoTBB" 
-            v-if="!sketchId" 
-            title="Load TheBigBrother Demo"
-          >
-            [38;5;220m[0m Demo: TBB
-          </button>
+          <TdaButton 
+            :active="tdaActive" 
+            :disabled="!sketchId || flowNodes.length === 0"
+            @toggle="toggleTda" 
+          />
         </div>
 
         <div class="os-toolbar-center">
           <input
             v-model="tbbTarget"
             class="os-input os-tbb-input"
-            placeholder="[38;5;240mUsername for TheBigBrother[0m"
+            placeholder="Username for TheBigBrother"
             :disabled="!sketchId || tbbBusy"
             @keyup.enter="runTheBigBrotherHandler"
           />
@@ -53,7 +35,7 @@
             @click="runTheBigBrotherHandler"
             :title="sketchId ? 'Run TheBigBrother enricher' : 'Select a sketch first'"
           >
-            {{ tbbBusy ? '[38;5;220mTBB...' : '[38;5;220m[0m TBB' }}
+            {{ tbbBusy ? 'TBB...' : ' TBB' }}
           </button>
         </div>
 
@@ -64,7 +46,7 @@
             @click="toggleEdgeMode"
             title="Toggle Edge Creation Mode"
           >
-            {{ edgeMode ? '[38;5;196mCancel Edge[0m' : '[38;5;220mAdd Edge[0m' }}
+            {{ edgeMode ? 'Cancel Edge' : 'Add Edge' }}
           </button>
           <button 
             class="btn" 
@@ -72,7 +54,7 @@
             :disabled="saving"
             title="Save Node Positions"
           >
-            {{ saving ? '[38;5;220mSaving...' : '[38;5;220mSave Layout' }}
+            {{ saving ? 'Saving...' : 'Save Layout' }}
           </button>
           <button 
             class="btn os-btn-danger" 
@@ -80,7 +62,7 @@
             @click="deleteSelected"
             title="Delete Selected"
           >
-            [38;5;196mDelete[0m
+            Delete
           </button>
         </div>
       </div>
@@ -88,16 +70,16 @@
       <!-- Hints -->
       <div class="os-graph-hints">
         <span v-if="edgeMode" class="os-hint">
-          [38;5;240mClick two nodes to create an edge[0m
+          Click two nodes to create an edge
         </span>
         <span v-else-if="selectedNode" class="os-hint">
-          [38;5;240mNode selected: {{ selectedNode.nodeLabel }} ({{ selectedNode.nodeType }})[0m
+          Node selected: {{ selectedNode.nodeLabel }} ({{ selectedNode.nodeType }})
         </span>
         <span v-else-if="selectedEdge" class="os-hint">
-          [38;5;240mEdge selected: {{ selectedEdge.label }}[0m
+          Edge selected: {{ selectedEdge.label }}
         </span>
         <span v-else class="os-hint">
-          [38;5;240mClick nodes to select [38;5;240m|[0m Double-click to add edge [38;5;240m|[0m Drag to move[0m
+          Click nodes to select | Double-click to add edge | Drag to move
         </span>
       </div>
 
@@ -124,6 +106,44 @@
           <Controls position="bottom-left" />
           <MiniMap position="bottom-right" node-color="#22d3ee" mask-color="rgba(10,14,20,0.7)" />
         </VueFlow>
+        
+        <!-- TDA Overlay -->
+        <div v-if="tdaActive" class="os-tda-overlay">
+          <div class="os-tda-overlay-header">
+            <span class="os-tda-overlay-title">  TDA Analysis</span>
+            <button class="os-tda-overlay-close" @click="toggleTda">×</button>
+          </div>
+          <div class="os-tda-overlay-content">
+            <div v-if="tdaAnalyzing" class="os-tda-overlay-loading">
+              <span class="os-spinner"></span>
+              Analyzing...
+            </div>
+            <div v-else-if="tdaResult" class="os-tda-overlay-stats">
+              <div class="os-tda-overlay-stat">
+                <span class="os-tda-overlay-stat-value">{{ tdaResult.h0 || 0 }}</span>
+                <span class="os-tda-overlay-stat-label">Components</span>
+              </div>
+              <div class="os-tda-overlay-stat">
+                <span class="os-tda-overlay-stat-value">{{ tdaResult.h1 || 0 }}</span>
+                <span class="os-tda-overlay-stat-label">Cycles</span>
+              </div>
+              <div class="os-tda-overlay-stat">
+                <span class="os-tda-overlay-stat-value">{{ tdaResult.bridges?.length || 0 }}</span>
+                <span class="os-tda-overlay-stat-label">Bridges</span>
+              </div>
+            </div>
+            <div v-else class="os-tda-overlay-empty">
+              Click "Run Analysis" to analyze the graph
+            </div>
+            <button 
+              class="btn os-btn-tda-run" 
+              @click="runTdaAnalysis"
+              :disabled="tdaAnalyzing || flowNodes.length === 0"
+            >
+              {{ tdaAnalyzing ? 'Analyzing...' : 'Run Analysis' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Stats Bar -->
@@ -162,9 +182,10 @@ import '@vue-flow/core/dist/theme-default.css'
 
 import { graphApi } from '@/entities/graph/api'
 import { graphToFlow } from '@/entities/graph/lib/vueflow'
-import { demoGraph, theBigBrotherDemo } from '@/entities/graph/lib/mock'
 import { runTheBigBrother } from '@/features/enricher-run/model'
+import { analyzeTda, type TdaResult, type TdaNode, type TdaEdge } from '@/shared/lib/tda'
 import type { GraphData, GraphEdge, GraphNode } from '@/shared/api/types'
+import TdaButton from './components/TdaButton.vue'
 
 const props = defineProps<{ sketchId: string | null; highlightIds?: string[] }>()
 
@@ -184,6 +205,11 @@ const tbbTarget = ref('')
 const selectedNodeId = ref<string | null>(null)
 const selectedEdgeId = ref<string | null>(null)
 const selectedNodeIds = ref<string[]>([])
+
+// TDA State
+const tdaActive = ref(false)
+const tdaAnalyzing = ref(false)
+const tdaResult = ref<TdaResult | null>(null)
 
 const { fitView } = useVueFlow()
 
@@ -229,20 +255,6 @@ async function loadGraph() {
   }
 }
 
-function loadDemo() {
-  selectedNodeId.value = null
-  selectedEdgeId.value = null
-  emitSelection()
-  applyGraph(demoGraph())
-}
-
-function loadDemoTBB() {
-  selectedNodeId.value = null
-  selectedEdgeId.value = null
-  emitSelection()
-  applyGraph(theBigBrotherDemo())
-}
-
 async function runTheBigBrotherHandler() {
   const target = (tbbTarget.value || '').trim()
   if (!target || !props.sketchId || tbbBusy.value) return
@@ -253,8 +265,6 @@ async function runTheBigBrotherHandler() {
     applyGraph(g)
   } catch (e) {
     console.error(e)
-    const msg = e instanceof Error ? e.message : 'Unknown error'
-    alert(`TheBigBrother: ${msg}`)
   } finally {
     tbbBusy.value = false
     emit('tbb-state', false)
@@ -374,6 +384,42 @@ async function deleteSelected() {
 
 function onDragStop() {
   // Auto-save positions after drag
+}
+
+// TDA Methods
+function toggleTda() {
+  tdaActive.value = !tdaActive.value
+  if (!tdaActive.value) {
+    tdaResult.value = null
+  }
+}
+
+async function runTdaAnalysis() {
+  if (flowNodes.value.length === 0) return
+  
+  tdaAnalyzing.value = true
+  try {
+    const nodes: TdaNode[] = flowNodes.value.map(n => ({
+      id: n.id,
+      label: (n.data as any)?.label || n.id,
+      type: (n.data as any)?.nodeType || 'unknown',
+      x: n.position?.x || 0,
+      y: n.position?.y || 0
+    }))
+    
+    const edges: TdaEdge[] = flowEdges.value.map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label: (e.data as any)?.label || ''
+    }))
+    
+    tdaResult.value = analyzeTda(nodes, edges, { mode: 'flag' })
+  } catch (error) {
+    console.error('TDA Analysis Error:', error)
+  } finally {
+    tdaAnalyzing.value = false
+  }
 }
 
 // Expose methods
@@ -733,5 +779,142 @@ const OsNode = {
   .os-stat-value {
     font-size: 0.8rem;
   }
+}
+
+/* TDA Overlay */
+.os-tda-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 240px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.os-tda-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+.os-tda-overlay-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.os-tda-overlay-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.os-tda-overlay-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.os-tda-overlay-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.os-tda-overlay-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.os-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.os-tda-overlay-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.os-tda-overlay-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.os-tda-overlay-stat-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.os-tda-overlay-stat-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.os-tda-overlay-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.os-btn-tda-run {
+  width: 100%;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.os-btn-tda-run:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.os-btn-tda-run:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

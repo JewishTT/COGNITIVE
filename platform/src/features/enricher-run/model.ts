@@ -61,7 +61,7 @@ export async function runEnricher(
   options: RunOptions = {},
 ): Promise<GraphData> {
   if (!nodeIds.length) throw new Error('Выберите хотя бы один узел в графе')
-  await enricherApi.launch(enricherName, nodeIds, sketchId)
+  await enricherApi.run(enricherName, sketchId, nodeIds)
   await waitForEnricher(sketchId, options.timeoutMs, options.onEvent)
   return graphApi.get(sketchId)
 }

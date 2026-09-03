@@ -1,6 +1,6 @@
 // platform/src/services/pipeline/lib/pluginSystem.ts
-// [38;5;240mPlugin System for OSINT Tools[0m
-// [38;5;240mAllows dynamic loading and execution of OSINT enrichment tools[0m
+// Plugin System for OSINT Tools
+// Allows dynamic loading and execution of OSINT enrichment tools
 
 import {
   IEnricher,
@@ -13,11 +13,11 @@ import {
 } from '../../shared/types';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mPlugin Metadata[0m
+ * Plugin Metadata
  */
 export interface PluginMetadata {
   name: string;
@@ -33,7 +33,7 @@ export interface PluginMetadata {
 }
 
 /**
- * [38;5;220mPlugin Manifest[0m
+ * Plugin Manifest
  */
 export interface PluginManifest {
   metadata: PluginMetadata;
@@ -44,7 +44,7 @@ export interface PluginManifest {
 }
 
 /**
- * [38;5;220mPlugin Load Options[0m
+ * Plugin Load Options
  */
 export interface PluginLoadOptions {
   autoEnable?: boolean;
@@ -52,7 +52,7 @@ export interface PluginLoadOptions {
 }
 
 /**
- * [38;5;220mPlugin Execution Context[0m
+ * Plugin Execution Context
  */
 export interface PluginExecutionContext {
   pluginName: string;
@@ -64,7 +64,7 @@ export interface PluginExecutionContext {
 }
 
 /**
- * [38;5;220mPlugin Logger[0m
+ * Plugin Logger
  */
 export interface PluginLogger {
   debug: (message: string, data?: unknown) => void;
@@ -74,7 +74,7 @@ export interface PluginLogger {
 }
 
 /**
- * [38;5;220mPlugin Cache Interface[0m
+ * Plugin Cache Interface
  */
 export interface PluginCache {
   get: <T>(key: string) => Promise<T | undefined>;
@@ -84,7 +84,7 @@ export interface PluginCache {
 }
 
 /**
- * [38;5;220mPlugin API Interface[0m
+ * Plugin API Interface
  */
 export interface PluginApi {
   // HTTP requests
@@ -118,12 +118,12 @@ export interface PluginApi {
 }
 
 /**
- * [38;5;220mPlugin Factory Function[0m
+ * Plugin Factory Function
  */
 export type PluginFactory = (context: PluginExecutionContext) => IEnricher | Promise<IEnricher>;
 
 /**
- * [38;5;220mLoaded Plugin[0m
+ * Loaded Plugin
  */
 export interface LoadedPlugin {
   metadata: PluginMetadata;
@@ -135,35 +135,35 @@ export interface LoadedPlugin {
 }
 
 // ============================================================================
-// [38;5;220mDEFAULT PLUGIN LOGGER[0m
+// DEFAULT PLUGIN LOGGER
 // ============================================================================
 
 /**
- * [38;5;220mCreate a logger for a plugin[0m
+ * Create a logger for a plugin
  */
 export function createPluginLogger(pluginName: string): PluginLogger {
   return {
     debug: (message, data) => {
-      console.log(`[38;5;240m[${pluginName}] DEBUG:[0m ${message}`, data || '');
+      console.log(`[${pluginName}] DEBUG: ${message}`, data || '');
     },
     info: (message, data) => {
-      console.log(`[38;5;220m[${pluginName}] INFO:[0m ${message}`, data || '');
+      console.log(`[${pluginName}] INFO: ${message}`, data || '');
     },
     warn: (message, data) => {
-      console.warn(`[38;5;208m[${pluginName}] WARN:[0m ${message}`, data || '');
+      console.warn(`[${pluginName}] WARN: ${message}`, data || '');
     },
     error: (message, error) => {
-      console.error(`[38;5;196m[${pluginName}] ERROR:[0m ${message}`, error || '');
+      console.error(`[${pluginName}] ERROR: ${message}`, error || '');
     },
   };
 }
 
 // ============================================================================
-// [38;5;220mDEFAULT PLUGIN API[0m
+// DEFAULT PLUGIN API
 // ============================================================================
 
 /**
- * [38;5;220mCreate default plugin API[0m
+ * Create default plugin API
  */
 export function createPluginApi(): PluginApi {
   return {
@@ -283,12 +283,12 @@ export function createPluginApi(): PluginApi {
 }
 
 // ============================================================================
-// [38;5;220mPLUGIN MANAGER[0m
+// PLUGIN MANAGER
 // ============================================================================
 
 /**
- * [38;5;220mPlugin Manager[0m
- * [38;5;240mManages loading, enabling, and executing plugins[0m
+ * Plugin Manager
+ * Manages loading, enabling, and executing plugins
  */
 export class PluginManager {
   private plugins: Map<string, LoadedPlugin> = new Map();
@@ -303,11 +303,11 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mPLUGIN DIRECTORIES[0m
+  // PLUGIN DIRECTORIES
   // ==========================================================================
 
   /**
-   * [38;5;220mAdd plugin directory[0m
+   * Add plugin directory
    */
   addPluginDirectory(dir: string): void {
     if (!this.pluginDirs.includes(dir)) {
@@ -316,18 +316,18 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mGet plugin directories[0m
+   * Get plugin directories
    */
   getPluginDirectories(): string[] {
     return [...this.pluginDirs];
   }
 
   // ==========================================================================
-  // [38;5;220mREGISTER PLUGINS[0m
+  // REGISTER PLUGINS
   // ==========================================================================
 
   /**
-   * [38;5;220mRegister a plugin factory[0m
+   * Register a plugin factory
    */
   registerPlugin(name: string, factory: PluginFactory, metadata?: Partial<PluginMetadata>): void {
     this.pluginFactories.set(name, factory);
@@ -363,7 +363,7 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mLoad plugins from a directory[0m
+   * Load plugins from a directory
    */
   async loadFromDirectory(dir: string, options?: PluginLoadOptions): Promise<LoadedPlugin[]> {
     const loaded: LoadedPlugin[] = [];
@@ -371,13 +371,13 @@ export class PluginManager {
     // This would be implemented with filesystem operations
     // For now, we'll just return an empty array
     
-    console.log(`[38;5;240m[PluginManager] Loading plugins from ${dir}[0m`);
+    console.log(`[PluginManager] Loading plugins from ${dir}`);
     
     return loaded;
   }
 
   /**
-   * [38;5;220mLoad all plugins from registered directories[0m
+   * Load all plugins from registered directories
    */
   async loadAll(options?: PluginLoadOptions): Promise<LoadedPlugin[]> {
     const allLoaded: LoadedPlugin[] = [];
@@ -391,17 +391,17 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mENABLE/DISABLE PLUGINS[0m
+  // ENABLE/DISABLE PLUGINS
   // ==========================================================================
 
   /**
-   * [38;5;220mEnable a plugin[0m
+   * Enable a plugin
    */
   async enablePlugin(name: string, config?: Record<string, unknown>): Promise<LoadedPlugin | null> {
     const plugin = this.plugins.get(name);
     
     if (!plugin) {
-      console.warn(`[38;5;208m[PluginManager] Plugin ${name} not found[0m`);
+      console.warn(`[PluginManager] Plugin ${name} not found`);
       return null;
     }
 
@@ -414,30 +414,30 @@ export class PluginManager {
     plugin.enabled = true;
     plugin.enricher.config = config || {};
     
-    console.log(`[38;5;220m[PluginManager] Enabled plugin ${name}[0m`);
+    console.log(`[PluginManager] Enabled plugin ${name}`);
     
     return plugin;
   }
 
   /**
-   * [38;5;220mDisable a plugin[0m
+   * Disable a plugin
    */
   disablePlugin(name: string): boolean {
     const plugin = this.plugins.get(name);
     
     if (!plugin) {
-      console.warn(`[38;5;208m[PluginManager] Plugin ${name} not found[0m`);
+      console.warn(`[PluginManager] Plugin ${name} not found`);
       return false;
     }
 
     plugin.enabled = false;
-    console.log(`[38;5;220m[PluginManager] Disabled plugin ${name}[0m`);
+    console.log(`[PluginManager] Disabled plugin ${name}`);
     
     return true;
   }
 
   /**
-   * [38;5;220mCheck if a plugin is enabled[0m
+   * Check if a plugin is enabled
    */
   isPluginEnabled(name: string): boolean {
     const plugin = this.plugins.get(name);
@@ -445,32 +445,32 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mGET PLUGINS[0m
+  // GET PLUGINS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet all plugins[0m
+   * Get all plugins
    */
   getPlugins(): LoadedPlugin[] {
     return Array.from(this.plugins.values());
   }
 
   /**
-   * [38;5;220mGet enabled plugins[0m
+   * Get enabled plugins
    */
   getEnabledPlugins(): LoadedPlugin[] {
     return this.getPlugins().filter(p => p.enabled && !p.error);
   }
 
   /**
-   * [38;5;220mGet plugin by name[0m
+   * Get plugin by name
    */
   getPlugin(name: string): LoadedPlugin | null {
     return this.plugins.get(name) || null;
   }
 
   /**
-   * [38;5;220mGet plugins by category[0m
+   * Get plugins by category
    */
   getPluginsByCategory(category: EnrichmentCategory): LoadedPlugin[] {
     return this.getPlugins().filter(p => 
@@ -479,7 +479,7 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mGet plugins supporting a specific task type[0m
+   * Get plugins supporting a specific task type
    */
   getPluginsForTaskType(taskType: PipelineTaskType): LoadedPlugin[] {
     return this.getPlugins().filter(p => 
@@ -488,11 +488,11 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mEXECUTE PLUGINS[0m
+  // EXECUTE PLUGINS
   // ==========================================================================
 
   /**
-   * [38;5;220mExecute a plugin by name[0m
+   * Execute a plugin by name
    */
   async executePlugin(
     name: string,
@@ -501,15 +501,15 @@ export class PluginManager {
     const plugin = this.getPlugin(name);
     
     if (!plugin) {
-      throw new Error(`[38;5;196mPlugin ${name} not found[0m`);
+      throw new Error(`Plugin ${name} not found`);
     }
 
     if (!plugin.enabled) {
-      throw new Error(`[38;5;196mPlugin ${name} is disabled[0m`);
+      throw new Error(`Plugin ${name} is disabled`);
     }
 
     if (plugin.error) {
-      throw new Error(`[38;5;196mPlugin ${name} failed to load: ${plugin.error.message}[0m`);
+      throw new Error(`Plugin ${name} failed to load: ${plugin.error.message}`);
     }
 
     const context: PluginExecutionContext = {
@@ -523,16 +523,16 @@ export class PluginManager {
 
     try {
       const result = await plugin.enricher.execute(input, context);
-      console.log(`[38;5;220m[PluginManager] Plugin ${name} executed successfully[0m`);
+      console.log(`[PluginManager] Plugin ${name} executed successfully`);
       return result;
     } catch (error) {
-      console.error(`[38;5;196m[PluginManager] Plugin ${name} execution failed:[0m`, error);
+      console.error(`[PluginManager] Plugin ${name} execution failed:`, error);
       throw error;
     }
   }
 
   /**
-   * [38;5;220mExecute multiple plugins in sequence[0m
+   * Execute multiple plugins in sequence
    */
   async executePluginsSequentially(
     pluginNames: string[],
@@ -554,7 +554,7 @@ export class PluginManager {
           },
         };
       } catch (error) {
-        console.error(`[38;5;196m[PluginManager] Plugin ${name} failed in sequence:[0m`, error);
+        console.error(`[PluginManager] Plugin ${name} failed in sequence:`, error);
         results.push({
           success: false,
           errors: [String(error)],
@@ -566,7 +566,7 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mExecute multiple plugins in parallel[0m
+   * Execute multiple plugins in parallel
    */
   async executePluginsParallel(
     pluginNames: string[],
@@ -583,11 +583,11 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mHEALTH CHECKS[0m
+  // HEALTH CHECKS
   // ==========================================================================
 
   /**
-   * [38;5;220mCheck health of a plugin[0m
+   * Check health of a plugin
    */
   async checkPluginHealth(name: string): Promise<HealthCheckResult> {
     const plugin = this.getPlugin(name);
@@ -631,7 +631,7 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mCheck health of all plugins[0m
+   * Check health of all plugins
    */
   async checkAllPluginsHealth(): Promise<Record<string, HealthCheckResult>> {
     const results: Record<string, HealthCheckResult> = {};
@@ -644,11 +644,11 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mVALIDATION[0m
+  // VALIDATION
   // ==========================================================================
 
   /**
-   * [38;5;220mValidate input for a plugin[0m
+   * Validate input for a plugin
    */
   async validatePluginInput(
     name: string,
@@ -692,11 +692,11 @@ export class PluginManager {
   }
 
   // ==========================================================================
-  // [38;5;220mPRIVATE METHODS[0m
+  // PRIVATE METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mLoad a plugin by name[0m
+   * Load a plugin by name
    */
   private async loadPlugin(name: string, config?: Record<string, unknown>): Promise<LoadedPlugin | null> {
     // Check if already loaded
@@ -775,7 +775,7 @@ export class PluginManager {
         };
         
         this.plugins.set(name, plugin);
-        console.error(`[38;5;196m[PluginManager] Failed to load plugin ${name}:[0m`, error);
+        console.error(`[PluginManager] Failed to load plugin ${name}:`, error);
         return null;
       }
     }
@@ -784,7 +784,7 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mInfer supported types from enricher metadata[0m
+   * Infer supported types from enricher metadata
    */
   private inferSupportedTypes(enricher: IEnricher): PipelineTaskType[] {
     // This is a simple inference based on enricher name and category
@@ -824,7 +824,7 @@ export class PluginManager {
   }
 
   /**
-   * [38;5;220mCreate default cache implementation[0m
+   * Create default cache implementation
    */
   private createDefaultCache(): PluginCache {
     const cacheMap = new Map<string, { value: unknown; expiresAt: number }>();
@@ -859,7 +859,7 @@ export class PluginManager {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 let pluginManager: PluginManager | null = null;
@@ -878,11 +878,11 @@ export function resetPluginManager(): void {
 }
 
 // ============================================================================
-// [38;5;220mDECORATORS FOR PLUGIN CREATION[0m
+// DECORATORS FOR PLUGIN CREATION
 // ============================================================================
 
 /**
- * [38;5;220mDecorator to create a plugin from a class[0m
+ * Decorator to create a plugin from a class
  */
 export function createPlugin(metadata: PluginMetadata) {
   return function <T extends { new (...args: any[]): {} }>(constructor: T) {
@@ -906,7 +906,7 @@ export function createPlugin(metadata: PluginMetadata) {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

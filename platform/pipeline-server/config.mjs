@@ -6,8 +6,12 @@
 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import dotenv from 'dotenv'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Load root .env
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') })
 
 export const config = {
   // Порт пайплайн-сервиса (проксируется браузером как /pipeline).
@@ -17,6 +21,12 @@ export const config = {
   // venv действительно только когда python + pip доступны.
   venvDir: process.env.PIPELINE_VENV || path.join(__dirname, '.pipeline-venv'),
   pipTimeoutMs: 1000 * 60 * 10,
+
+  // Conda-окружения для инструментов, требующих специфических зависимостей.
+  conda: {
+    cognitive: process.env.CONDA_COGNITIVE || 'C:\\Users\\tim\\miniconda3\\envs\\cognitive',
+    harvester: process.env.CONDA_HARVESTER || 'C:\\Users\\tim\\miniconda3\\envs\\harvester',
+  },
 
   // Python-инструменты, которые пытаемся доустановить автоматически.
   // Каждый элемент: скрипт установки/запуска. Для CLI-тулов, которые ставим
@@ -41,8 +51,8 @@ export const config = {
   // Опциональный самохостинг SearXNG (JSON-вывод). Если пусто — метапоиск
   // помечается unavailable и используется in-memory синтезатор ссылок.
   searxng: {
-    url: process.env.SEARXNG_URL || '',
-    json: process.env.SEARXNG_JSON || process.env.SEARXNG_URL || '',
+    url: process.env.SEARXNG_URL || 'http://localhost:8888',
+    json: process.env.SEARXNG_JSON || process.env.SEARXNG_URL || 'http://localhost:8888',
     format: 'json',
   },
 
@@ -60,4 +70,42 @@ export const config = {
 
   // Каталог временной работы (результаты сбора, EXIF-копии и т.д.).
   workDir: path.join(__dirname, '.work'),
+
+  // Cerebras LLM (GPT-OSS-120B via wafer-scale inference).
+  cerebras: {
+    apiKey: process.env.CEREBRAS_API_KEY || '',
+    model: process.env.CEREBRAS_MODEL || 'gpt-oss-120b',
+    baseUrl: process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
+  },
+
+  // Groq LLM (fast OSS inference, OpenAI-compatible API).
+  groq: {
+    apiKey: process.env.GROQ_API_KEY || '',
+    model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    baseUrl: process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1',
+    proxy: process.env.GROQ_PROXY || '',
+  },
+
+  // OpenRouter (multi-model gateway).
+  openrouter: {
+    apiKey: process.env.OPENROUTER_API_KEY || '',
+    model: process.env.OPENROUTER_MODEL || 'z-ai/glm-5.2:free',
+    baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+    proxy: process.env.OPENROUTER_PROXY || '',
+  },
+
+  // OpenCode Zen (opencode.ai - OpenAI-compatible, works from RU, big-pickle model).
+  opencode: {
+    apiKey: process.env.OPENCODE_API_KEY || '',
+    model: process.env.OPENCODE_MODEL || 'big-pickle',
+    baseUrl: process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1',
+  },
+
+  // Neo4j direct access for management endpoints.
+  neo4j: {
+    uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
+    user: process.env.NEO4J_USER || 'neo4j',
+    password: process.env.NEO4J_PASSWORD || 'password',
+    database: process.env.NEO4J_DATABASE || 'neo4j',
+  },
 }

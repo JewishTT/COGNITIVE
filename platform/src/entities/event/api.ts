@@ -4,11 +4,11 @@ import type { EventLogEntry, SseMessage } from '@/shared/api/types'
 
 export const eventApi = {
   logs(sketchId: string, limit = 100): Promise<EventLogEntry[]> {
-    return http(`/events/sketch/${sketchId}/logs?limit=${limit}`)
+    return http(`/events/logs?sketch_id=${sketchId}&limit=${limit}`)
   },
 
   /**
-   * Подписка на живой поток событий sketch'а.
+   * Подписка на живой поток событий.
    * onEvent({event:'log'|'enricher_complete'|'connected', data}) — вызывается для
    * каждого кадра SSE. Возвращает функцию отписки.
    */
@@ -22,7 +22,7 @@ export const eventApi = {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`/flowsint-api/api/events/sketch/${sketchId}/stream`, {
+        const res = await fetch(`/flowsint-api/api/events`, {
           headers: { Authorization: `Bearer ${token}` },
           signal: ctrl.signal,
         })

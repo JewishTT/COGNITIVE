@@ -13,19 +13,14 @@ export const chat = useChat()
 /** Convenience: seed the transcript on first mount. */
 export function seedWelcome() {
   if (chat.messages.value.length > 0) return
-  chat.sendMessage(
-    'system',
-    'Добро пожаловать в GHOST-7. Я ИИ-менеджер проекта — управляю задачами и исполняю команды. Пиши «помощь» для списка команд.',
+  chat.receiveAssistant(
+    `**GHOST-7 онлайн**\n\n` +
+    `Оператор, я готов к работе. Доступные команды:\n\n` +
+    `- \`скан <цель>\` — OSINT-сбор данных\n` +
+    `- \`статус\` — инструменты и запуски\n` +
+    `- \`помощь\` — список всех команд\n\n` +
+    `Можно писать на русском или английском.`
   )
-  // Friendly AI greeting after a beat.
-  setTimeout(() => {
-    const msg = chat.receiveAssistant(
-      '👋 Привет! Я **GHOST-7** — твой ИИ-менеджер проекта. ' +
-        'Я умею запускать тесты, собирать билды, добавлять сущности в ОСИНТ-граф и ' +
-        'перезапускать стек Фабрики через docker. Что нужно сделать?',
-    )
-        chat.setDelivered(msg.id)
-  }, 400)
 }
 
 /** Reset the store to a pristine state (used by tests / hot-reload). */

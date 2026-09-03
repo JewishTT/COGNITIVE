@@ -1,14 +1,14 @@
 // platform/src/services/shared/types/index.ts
-// [38;5;240mShared Type Definitions for OSINT Microservices Architecture[0m
-// [38;5;240mThis file contains standardized types used across all microservices[0m
+// Shared Type Definitions for OSINT Microservices Architecture
+// This file contains standardized types used across all microservices
 
 // ============================================================================
-// [38;5;220mCORE TYPES - STIX/TAXII Compliant[0m
+// CORE TYPES - STIX/TAXII Compliant
 // ============================================================================
 
 /**
  * STIX 2.1 Compliant Entity Types
- * [38;5;240mStandardized OSINT entity types based on STIX/TAXII and OpenCTI[0m
+ * Standardized OSINT entity types based on STIX/TAXII and OpenCTI
  */
 export type StixEntityType =
   | 'attack-pattern'
@@ -44,12 +44,12 @@ export type StixRelationshipType =
   | 'x-custom-relationship';
 
 // ============================================================================
-// [38;5;220mGRAPH DATA STRUCTURES[0m
+// GRAPH DATA STRUCTURES
 // ============================================================================
 
 /**
- * [38;5;220mStandardized Graph Node - STIX Compliant[0m
- * [38;5;240mAll properties are optional to maintain backward compatibility[0m
+ * Standardized Graph Node - STIX Compliant
+ * All properties are optional to maintain backward compatibility
  */
 export interface StandardGraphNode {
   id: string;
@@ -90,7 +90,7 @@ export interface StandardGraphNode {
 }
 
 /**
- * [38;5;220mStandardized Graph Edge - STIX Compliant[0m
+ * Standardized Graph Edge - STIX Compliant
  */
 export interface StandardGraphEdge {
   id: string;
@@ -127,7 +127,7 @@ export interface StandardGraphEdge {
 }
 
 /**
- * [38;5;220mGraph Data Structure[0m
+ * Graph Data Structure
  */
 export interface StandardGraphData {
   nodes: StandardGraphNode[];
@@ -141,11 +141,11 @@ export interface StandardGraphData {
 }
 
 // ============================================================================
-// [38;5;220mAPI CONTRACTS[0m
+// API CONTRACTS
 // ============================================================================
 
 /**
- * [38;5;220mStandard API Response Wrapper[0m
+ * Standard API Response Wrapper
  */
 export interface ApiResponse<T> {
   success: boolean;
@@ -157,7 +157,7 @@ export interface ApiResponse<T> {
 }
 
 /**
- * [38;5;220mStandard API Error[0m
+ * Standard API Error
  */
 export interface ApiError {
   code: string;
@@ -167,7 +167,7 @@ export interface ApiError {
 }
 
 /**
- * [38;5;220mPagination Parameters[0m
+ * Pagination Parameters
  */
 export interface PaginationParams {
   page?: number;
@@ -180,7 +180,7 @@ export interface PaginationParams {
 }
 
 /**
- * [38;5;220mPaginated Response[0m
+ * Paginated Response
  */
 export interface PaginatedResponse<T> {
   items: T[];
@@ -193,11 +193,11 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================================================
-// [38;5;220mEVENT BUS TYPES[0m
+// EVENT BUS TYPES
 // ============================================================================
 
 /**
- * [38;5;220mEvent Types for Redis Pub/Sub[0m
+ * Event Types for Redis Pub/Sub
  */
 export type EventType =
   | 'graph:created'
@@ -221,7 +221,7 @@ export type EventType =
   | 'tda:analysis-completed';
 
 /**
- * [38;5;220mEvent Message Structure[0m
+ * Event Message Structure
  */
 export interface EventMessage<T = unknown> {
   eventType: EventType;
@@ -235,7 +235,7 @@ export interface EventMessage<T = unknown> {
 }
 
 /**
- * [38;5;220mGraph Event Data[0m
+ * Graph Event Data
  */
 export interface GraphEventData {
   graphId?: string;
@@ -254,11 +254,11 @@ export interface GraphEventData {
 }
 
 // ============================================================================
-// [38;5;220mPIPELINE TYPES[0m
+// PIPELINE TYPES
 // ============================================================================
 
 /**
- * [38;5;220mPipeline Task Types[0m
+ * Pipeline Task Types
  */
 export type PipelineTaskType =
   | 'domain'
@@ -273,7 +273,7 @@ export type PipelineTaskType =
   | 'custom';
 
 /**
- * [38;5;220mPipeline Status[0m
+ * Pipeline Status
  */
 export type PipelineStatus =
   | 'queued'
@@ -284,7 +284,7 @@ export type PipelineStatus =
   | 'paused';
 
 /**
- * [38;5;220mPipeline Tool Configuration[0m
+ * Pipeline Tool Configuration
  */
 export interface PipelineToolConfig {
   name: string;
@@ -301,7 +301,7 @@ export interface PipelineToolConfig {
 }
 
 /**
- * [38;5;220mPipeline Run Configuration[0m
+ * Pipeline Run Configuration
  */
 export interface PipelineRunConfig {
   id: string;
@@ -314,7 +314,7 @@ export interface PipelineRunConfig {
 }
 
 /**
- * [38;5;220mPipeline Result[0m
+ * Pipeline Result
  */
 export interface PipelineResult {
   runId: string;
@@ -330,22 +330,22 @@ export interface PipelineResult {
 }
 
 // ============================================================================
-// [38;5;220mTDA (Topological Data Analysis) TYPES[0m
+// TDA (Topological Data Analysis) TYPES
 // ============================================================================
 
 /**
- * [38;5;220mTDA Analysis Mode[0m
+ * TDA Analysis Mode
  */
 export type TdaAnalysisMode =
   | 'flag'      // Flag complex (clique complex)
   | 'dowker'    // Dowker complex
   | 'rips'      // Rips complex
-  | 'cech'      // [38;5;208m[0m[38;5;208m[0m[38
+  | 'cech'      // Cech complex
   | 'mapper'    // Mapper algorithm
   | 'persistent-homology';
 
 /**
- * [38;5;220mTDA Analysis Parameters[0m
+ * TDA Analysis Parameters
  */
 export interface TdaParameters {
   mode: TdaAnalysisMode;
@@ -357,7 +357,7 @@ export interface TdaParameters {
 }
 
 /**
- * [38;5;220mTDA Analysis Result[0m
+ * TDA Analysis Result
  */
 export interface TdaAnalysisResult {
   // Basic stats
@@ -366,10 +366,10 @@ export interface TdaAnalysisResult {
   avgDegree: number;
   
   // Homology groups
-  h0: number; // [38;5;220mBetti number 0 (connected components)[0m
-  h1: number; // [38;5;220mBetti number 1 (cycles)[0m
-  h2?: number; // [38;5;220mBetti number 2 (voids)[0m
-  h3?: number; // [38;5;220mBetti number 3 (higher-dimensional holes)[0m
+  h0: number; // Betti number 0 (connected components)
+  h1: number; // Betti number 1 (cycles)
+  h2?: number; // Betti number 2 (voids)
+  h3?: number; // Betti number 3 (higher-dimensional holes)
   
   // Components
   components: TdaComponent[];
@@ -414,7 +414,7 @@ export interface TdaAnalysisResult {
 }
 
 /**
- * [38;5;220mTDA Component Information[0m
+ * TDA Component Information
  */
 export interface TdaComponent {
   id: number;
@@ -426,7 +426,7 @@ export interface TdaComponent {
 }
 
 /**
- * [38;5;220mTDA Cycle Information[0m
+ * TDA Cycle Information
  */
 export interface TdaCycle {
   id: number;
@@ -437,7 +437,7 @@ export interface TdaCycle {
 }
 
 /**
- * [38;5;220mTDA Triangle Information[0m
+ * TDA Triangle Information
  */
 export interface TdaTriangle {
   id: number;
@@ -447,7 +447,7 @@ export interface TdaTriangle {
 }
 
 /**
- * [38;5;220mTDA Bridge Information[0m
+ * TDA Bridge Information
  */
 export interface TdaBridge {
   edgeId: string;
@@ -459,7 +459,7 @@ export interface TdaBridge {
 }
 
 /**
- * [38;5;220mTDA Cut Vertex Information[0m
+ * TDA Cut Vertex Information
  */
 export interface TdaCutVertex {
   nodeId: string;
@@ -468,7 +468,7 @@ export interface TdaCutVertex {
 }
 
 /**
- * [38;5;220mTDA Node Metrics[0m
+ * TDA Node Metrics
  */
 export interface TdaNodeMetric {
   nodeId: string;
@@ -483,7 +483,7 @@ export interface TdaNodeMetric {
 }
 
 /**
- * [38;5;220mTDA Cluster Information[0m
+ * TDA Cluster Information
  */
 export interface TdaCluster {
   id: number;
@@ -494,7 +494,7 @@ export interface TdaCluster {
 }
 
 /**
- * [38;5;220mTDA Persistence Bar[0m
+ * TDA Persistence Bar
  */
 export interface TdaPersistenceBar {
   birth: number;
@@ -503,7 +503,7 @@ export interface TdaPersistenceBar {
 }
 
 /**
- * [38;5;220mTDA Complex Edge[0m
+ * TDA Complex Edge
  */
 export interface TdaComplexEdge {
   source: string;
@@ -511,7 +511,7 @@ export interface TdaComplexEdge {
 }
 
 /**
- * [38;5;220mTDA Maximal Simplex[0m
+ * TDA Maximal Simplex
  */
 export interface TdaMaximalSimplex {
   id: number;
@@ -523,7 +523,7 @@ export interface TdaMaximalSimplex {
 }
 
 /**
- * [38;5;220mTDA Weight Bar[0m
+ * TDA Weight Bar
  */
 export interface TdaWeightBar {
   threshold: number;
@@ -532,11 +532,11 @@ export interface TdaWeightBar {
 }
 
 // ============================================================================
-// [38;5;220mENRICHMENT TYPES[0m
+// ENRICHMENT TYPES
 // ============================================================================
 
 /**
- * [38;5;220mEnrichment Category[0m
+ * Enrichment Category
  */
 export type EnrichmentCategory =
   | 'identity'
@@ -551,8 +551,8 @@ export type EnrichmentCategory =
   | 'custom';
 
 /**
- * [38;5;220mEnricher Interface[0m
- * [38;5;240mPlugin system interface for custom enrichers[0m
+ * Enricher Interface
+ * Plugin system interface for custom enrichers
  */
 export interface IEnricher {
   // Metadata
@@ -583,7 +583,7 @@ export interface IEnricher {
 }
 
 /**
- * [38;5;220mEnrichment Input[0m
+ * Enrichment Input
  */
 export interface EnrichmentInput {
   query: string;
@@ -595,7 +595,7 @@ export interface EnrichmentInput {
 }
 
 /**
- * [38;5;220mEnrichment Output[0m
+ * Enrichment Output
  */
 export interface EnrichmentOutput {
   success: boolean;
@@ -609,7 +609,7 @@ export interface EnrichmentOutput {
 }
 
 /**
- * [38;5;220mValidation Result[0m
+ * Validation Result
  */
 export interface ValidationResult {
   valid: boolean;
@@ -618,7 +618,7 @@ export interface ValidationResult {
 }
 
 /**
- * [38;5;220mHealth Check Result[0m
+ * Health Check Result
  */
 export interface HealthCheckResult {
   healthy: boolean;
@@ -627,7 +627,7 @@ export interface HealthCheckResult {
 }
 
 /**
- * [38;5;220mEnrichment Chain Definition[0m
+ * Enrichment Chain Definition
  */
 export interface EnrichmentChain {
   id: string;
@@ -644,11 +644,11 @@ export interface EnrichmentChain {
 }
 
 // ============================================================================
-// [38;5;220mCOLLABORATION TYPES[0m
+// COLLABORATION TYPES
 // ============================================================================
 
 /**
- * [38;5;220mUser Role[0m
+ * User Role
  */
 export type UserRole =
   | 'admin'
@@ -657,7 +657,7 @@ export type UserRole =
   | 'guest';
 
 /**
- * [38;5;220mPermission Level[0m
+ * Permission Level
  */
 export type PermissionLevel =
   | 'read'
@@ -666,7 +666,7 @@ export type PermissionLevel =
   | 'admin';
 
 /**
- * [38;5;220mAccess Control Entry[0m
+ * Access Control Entry
  */
 export interface AccessControlEntry {
   userId: string;
@@ -678,7 +678,7 @@ export interface AccessControlEntry {
 }
 
 /**
- * [38;5;220mGraph Version[0m
+ * Graph Version
  */
 export interface GraphVersion {
   id: string;
@@ -698,7 +698,7 @@ export interface GraphVersion {
 }
 
 /**
- * [38;5;220mGraph Comment[0m
+ * Graph Comment
  */
 export interface GraphComment {
   id: string;
@@ -714,7 +714,7 @@ export interface GraphComment {
 }
 
 /**
- * [38;5;220mGraph Annotation[0m
+ * Graph Annotation
  */
 export interface GraphAnnotation {
   id: string;
@@ -729,11 +729,11 @@ export interface GraphAnnotation {
 }
 
 // ============================================================================
-// [38;5;220mCACHE TYPES[0m
+// CACHE TYPES
 // ============================================================================
 
 /**
- * [38;5;220mCache Entry[0m
+ * Cache Entry
  */
 export interface CacheEntry<T = unknown> {
   key: string;
@@ -745,7 +745,7 @@ export interface CacheEntry<T = unknown> {
 }
 
 /**
- * [38;5;220mCache Strategy[0m
+ * Cache Strategy
  */
 export type CacheStrategy =
   | 'none'
@@ -755,7 +755,7 @@ export type CacheStrategy =
   | 'hybrid';
 
 /**
- * [38;5;220mCache Configuration[0m
+ * Cache Configuration
  */
 export interface CacheConfig {
   strategy: CacheStrategy;
@@ -767,11 +767,11 @@ export interface CacheConfig {
 }
 
 // ============================================================================
-// [38;5;220mERROR TYPES[0m
+// ERROR TYPES
 // ============================================================================
 
 /**
- * [38;5;220mDetailed Error with Context[0m
+ * Detailed Error with Context
  */
 export interface DetailedError extends Error {
   code: string;
@@ -788,30 +788,30 @@ export interface DetailedError extends Error {
 }
 
 // ============================================================================
-// [38;5;220mUTILITY TYPES[0m
+// UTILITY TYPES
 // ============================================================================
 
 /**
- * [38;5;220mResult Type for Operations[0m
+ * Result Type for Operations
  */
 export type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
 
 /**
- * [38;5;220mMaybe Type (Optional with null)[0m
+ * Maybe Type (Optional with null)
  */
 export type Maybe<T> = T | null | undefined;
 
 /**
- * [38;5;220mDeep Partial Type[0m
+ * Deep Partial Type
  */
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
 /**
- * [38;5;220mRequire At Least One Property[0m
+ * Require At Least One Property
  */
 export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
   T,
@@ -822,14 +822,14 @@ export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
   }[Keys];
 
 /**
- * [38;5;220mDeep Readonly Type[0m
+ * Deep Readonly Type
  */
 export type DeepReadonly<T> = {
   readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
 };
 
 // ============================================================================
-// [38;5;220mEXPORT ALL TYPES[0m
+// EXPORT ALL TYPES
 // ============================================================================
 
 export {

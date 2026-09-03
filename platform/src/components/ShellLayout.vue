@@ -1,884 +1,501 @@
-<template>
-  <div class="shell">
-    <!-- [38;5;240mPremium Header with Glass Effect[0m -->
-    <header class="shell-header glass">
-      <div class="shell-brand">
-        <div class="shell-logo-container">
-          <span class="shell-logo neon neon-primary">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"/>
-            </svg>
-          </span>
-          <span class="shell-logo-text">COGNITIVE</span>
-        </div>
-        <div class="shell-brand-info">
-          <strong class="shell-brand-name">[38;5;240mПлатформа[0m</strong>
-          <small class="shell-brand-subtitle">[38;5;240mКомандный центр OSINT[0m</small>
-        </div>
-        <div class="shell-scanner">
-          <div class="scanner-line"></div>
+﻿<template>
+  <div class="shell" :data-theme="isDark ? 'dark' : 'light'">
+    <header class="shell-header">
+      <div class="header-brand">
+        <span class="brand-logo"></span>
+        <span class="brand-divider"></span>
+        <div class="brand-text">
+          <span class="brand-word">COGNITIVE</span>
+          <span class="brand-sub">PLATFORM // v{{ version }}</span>
         </div>
       </div>
 
-      <!-- [38;5;240mNavigation with Hover Effects[0m -->
-      <nav class="shell-nav" aria-label="Разделы платформы">
-        <router-link
-          v-for="item in nav"
-          :key="item.path"
-          :to="item.path"
-          class="shell-link"
-          :class="{ active: item.path === currentPath }"
-          :title="item.title"
-        >
-          <span class="shell-link-icon">{{ item.icon }}</span>
-          <span class="shell-link-label">{{ item.label }}</span>
-          <span v-if="item.dot" class="shell-nav-dot" :class="`dot-${item.dot}`"></span>
+      <nav class="shell-nav">
+        <router-link v-for="item in nav" :key="item.path" :to="item.path"
+          class="nav-link" :class="{ active: item.path === currentPath }">
+          <span class="nav-label">{{ item.label }}</span>
         </router-link>
       </nav>
 
-      <!-- [38;5;240mControl Center[0m -->
-      <div class="shell-ctrl">
-        <div class="ctrl-actions">
-          <!-- Theme Toggle -->
-          <button 
-            class="ctrl-btn tooltip-wrapper"
-            @click="toggleTheme"
-            :title="isDark ? 'Светлая тема' : 'Темная тема'"
-          >
-            <span class="ctrl-icon">
-              <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5"/>
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-              </svg>
-              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            </span>
-          </button>
-          
-          <!-- Notifications -->
-          <button class="ctrl-btn tooltip-wrapper" title="Уведомления">
-            <span class="ctrl-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-            </span>
-            <span v-if="notifications > 0" class="ctrl-badge">{{ notifications }}</span>
-          </button>
-          
-          <!-- User Menu -->
-          <div class="ctrl-user dropdown">
-            <button class="user-btn dropdown-trigger" @click="toggleUserMenu">
-              <div class="user-avatar">
-                <span class="avatar-fallback">{{ userInitials }}</span>
-              </div>
-              <div class="user-info">
-                <span class="user-name">{{ userName }}</span>
-                <span class="user-role">{{ userRole }}</span>
-              </div>
-              <span class="user-chevron">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M6 9l6 6 6-6"/>
-                </svg>
-              </span>
-            </button>
-            
-            <div class="dropdown-menu dropdown-menu-right" :class="{ open: userMenuOpen }">
-              <div class="dropdown-header">
-                <div class="user-card">
-                  <div class="user-card-avatar">
-                    <span class="avatar-fallback avatar-lg">{{ userInitials }}</span>
-                  </div>
-                  <div class="user-card-info">
-                    <div class="user-card-name">{{ userName }}</div>
-                    <div class="user-card-email">{{ userEmail }}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="dropdown-divider"></div>
-              <div class="dropdown-item" @click="navigateToProfile">
-                <span class="dropdown-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                </span>
-                Профиль
-              </div>
-              <div class="dropdown-item" @click="navigateToSettings">
-                <span class="dropdown-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                  </svg>
-                </span>
-                Настройки
-              </div>
-              <div class="dropdown-divider"></div>
-              <div class="dropdown-item dropdown-item-danger" @click="logout">
-                <span class="dropdown-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                </span>
-                Выйти
-              </div>
+      <div class="header-right">
+        <button class="h-search" @click="searchOpen = true" title="Поиск (Ctrl+K)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="h-search-txt">Поиск…</span>
+          <kbd class="h-kbd">Ctrl K</kbd>
+        </button>
+
+        <div class="sys-led" :class="sysStatus">
+          <span class="led-dot"></span>
+          <span class="led-label">{{ sysStatusLabel }}</span>
+        </div>
+
+        <span class="h-clock">{{ currentTime }}</span>
+
+        <button class="h-icon" :title="isDark ? 'Светлая тема' : 'Тёмная тема'" @click="toggleTheme">
+          <svg v-if="isDark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <ChatWindow />
+
+        <div class="user" @click="toggleUserMenu">
+          <span class="user-avatar">A</span>
+        </div>
+
+        <div v-if="userMenuOpen" class="user-menu" @click.stop>
+          <div class="um-head">
+            <span class="user-avatar lg">A</span>
+            <div class="um-id">
+              <div class="um-name">{{ userName }}</div>
+              <div class="um-mail">{{ userEmail }}</div>
             </div>
           </div>
+          <div class="um-sep"></div>
+          <div class="um-item" @click="userMenuOpen = false">Профиль</div>
+          <div class="um-item" @click="userMenuOpen = false">Настройки</div>
+          <div class="um-sep"></div>
+          <div class="um-item danger" @click="userMenuOpen = false">Выйти</div>
         </div>
-        
-        <!-- [38;5;240mAI Chat Toggle[0m -->
-        <ChatWindow />
       </div>
     </header>
+    <div class="header-glow"></div>
 
-    <!-- [38;5;240mMain Content Area[0m -->
     <main class="shell-content">
       <router-view />
     </main>
 
-    <!-- [38;5;240mPremium Footer[0m -->
-    <footer class="shell-footer glass">
-      <div class="footer-left">
-        <span class="footer-version">v{{ version }}</span>
-        <span class="footer-divider">|</span>
-        <span class="footer-timestamp">{{ currentTime }}</span>
-      </div>
-      <div class="footer-center">
-        <span class="footer-status">
-          <span class="status-dot online"></span>
-          Все системы работают
-        </span>
-      </div>
-      <div class="footer-right">
-        <a href="#" class="footer-link" @click.prevent="showDocs">Документация</a>
-        <a href="#" class="footer-link" @click.prevent="showSupport">Поддержка</a>
-      </div>
+    <footer class="shell-footer">
+      <span class="f-cell">COGNITIVE CORE</span>
+      <span class="f-sep">·</span>
+      <span class="f-cell mono">v{{ version }}</span>
+      <span class="f-sep">·</span>
+      <span class="f-cell mono">{{ currentTime }}</span>
+      <span class="f-spacer"></span>
+      <span class="f-status"><span class="f-led"></span>OPERATIONAL</span>
     </footer>
+
+    <div v-if="searchOpen" class="cmd-overlay" @click.self="searchOpen = false">
+      <div class="cmd-palette">
+        <div class="cmd-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input ref="cmdInput" v-model="cmdQuery" placeholder="Поиск по платформе…" @keydown.enter="runCmd" />
+          <kbd>ESC</kbd>
+        </div>
+        <div class="cmd-list">
+          <a v-for="r in cmdResults" :key="r.path" class="cmd-item" :href="'#' + r.path" @click="closeCmd">
+            <span class="cmd-kind">{{ r.kind }}</span>
+            <span class="cmd-title">{{ r.title }}</span>
+            <span class="cmd-path">{{ r.path }}</span>
+          </a>
+          <div v-if="!cmdResults.length" class="cmd-empty">Нет совпадений</div>
+        </div>
+        <div class="cmd-foot"><span><kbd>↵</kbd> открыть</span><span class="cmd-foot-brand">COGNITIVE</span></div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import ChatWindow from '@/chat/components/ChatWindow.vue'
 
 const route = useRoute()
-const router = useRouter()
 const currentPath = computed(() => route.path)
 
-// Theme state
 const isDark = ref(true)
 const userMenuOpen = ref(false)
-const notifications = ref(3)
-
-// User state
-const userName = ref('Администратор')
+const searchOpen = ref(false)
+const cmdQuery = ref('')
+const cmdInput = ref<HTMLInputElement | null>(null)
+const userName = ref('Admin')
 const userEmail = ref('admin@cognitive.ai')
-const userRole = ref('Super Admin')
-const userInitials = computed(() => {
-  return userName.value.split(' ').map(n => n[0]).join('').toUpperCase()
-})
-
-// Platform info
-const version = ref('2.0.0')
+const version = ref('2.1.0')
 const currentTime = ref('')
 
-// Navigation items
 const nav = [
-  { 
-    path: '/', 
-    label: 'Дашборд', 
-    icon: '[38;5;240m🏠[0m', 
-    title: 'Центр управления и аналитики', 
-    dot: 'success' 
-  },
-  { 
-    path: '/globe', 
-    label: 'Глобус', 
-    icon: '[38;5;240m🌍[0m', 
-    title: '3D визуализация данных', 
-    dot: 'info' 
-  },
-  { 
-    path: '/osint', 
-    label: 'OSINT', 
-    icon: '[38;5;240m🔍[0m', 
-    title: 'Расследования и анализ данных', 
-    dot: 'warning' 
-  },
-  { 
-    path: '/factory', 
-    label: 'Фабрика', 
-    icon: '[38;5;240m🏭[0m', 
-    title: 'AI конвейеры и автоматизация', 
-    dot: 'success' 
-  },
-  { 
-    path: '/ecommerce', 
-    label: 'Коммерция', 
-    icon: '[38;5;240m💰[0m', 
-    title: 'Мониторинг транзакций', 
-    dot: '' 
-  },
+  { path: '/', label: 'Обзор' },
+  { path: '/globe', label: 'Глобус' },
+  { path: '/osint', label: 'Осинт' },
+  { path: '/factory', label: 'Фабрика' },
+  { path: '/ecommerce', label: 'Проекты' },
 ]
 
-// Theme toggle
+const sysStatus = computed(() => (route.path === '/globe' ? 'busy' : 'ok'))
+const sysStatusLabel = computed(() => (sysStatus.value === 'busy' ? 'Обработка' : 'В сети'))
+
+const commands = [
+  { path: '/', title: 'Обзор — командный центр', kind: 'ГЛАВ' },
+  { path: '/globe', title: 'Глобус — 3D мониторинг', kind: '3D' },
+  { path: '/osint', title: 'Осинт — граф расследований', kind: 'ОСНТ' },
+  { path: '/factory', title: 'Фабрика — AI контент', kind: 'ФБРК' },
+  { path: '/ecommerce', title: 'Проекты — коммерция', kind: 'ПРКТ' },
+]
+
+const cmdResults = computed(() => {
+  const q = cmdQuery.value.trim().toLowerCase()
+  if (!q) return commands
+  return commands.filter((c) => (c.title + c.kind + c.path).toLowerCase().includes(q))
+})
+
 const toggleTheme = () => {
   isDark.value = !isDark.value
+  applyTheme()
+}
+
+const applyTheme = () => {
   document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
 
-// User menu toggle
-const toggleUserMenu = (e: Event) => {
-  e.stopPropagation()
-  userMenuOpen.value = !userMenuOpen.value
+const toggleUserMenu = (e: Event) => { e.stopPropagation(); userMenuOpen.value = !userMenuOpen.value }
+const closeMenu = () => { userMenuOpen.value = false }
+
+const openCmd = () => { searchOpen.value = true; nextTick(() => cmdInput.value?.focus()) }
+const closeCmd = () => { searchOpen.value = false; cmdQuery.value = '' }
+
+const runCmd = (e: KeyboardEvent) => {
+  e.preventDefault()
+  if (!cmdResults.value.length) return
+  window.location.hash = cmdResults.value[0].path
+  closeCmd()
 }
 
-// Close user menu on outside click
-const closeUserMenu = () => {
-  userMenuOpen.value = false
-}
-
-// Navigation handlers
-const navigateToProfile = () => {
-  userMenuOpen.value = false
-  router.push('/profile')
-}
-
-const navigateToSettings = () => {
-  userMenuOpen.value = false
-  router.push('/settings')
-}
-
-const logout = () => {
-  userMenuOpen.value = false
-  router.push('/login')
-}
-
-// Footer handlers
-const showDocs = () => {
-  window.open('https://docs.cognitive.ai', '_blank')
-}
-
-const showSupport = () => {
-  window.open('https://support.cognitive.ai', '_blank')
-}
-
-// Update time
 const updateTime = () => {
-  currentTime.value = new Date().toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+  currentTime.value = new Date().toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   })
 }
 
-// Lifecycle hooks
+const onKey = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openCmd() }
+  if (e.key === 'Escape') closeCmd()
+}
+
 onMounted(() => {
-  // Load theme preference
   const savedTheme = localStorage.getItem('theme') || 'dark'
   isDark.value = savedTheme === 'dark'
-  document.documentElement.setAttribute('data-theme', savedTheme)
-  
-  // Start time update
+  applyTheme()
   updateTime()
-  const timeInterval = setInterval(updateTime, 1000)
-  
-  // Close menu on outside click
-  document.addEventListener('click', closeUserMenu)
-  
+  const interval = setInterval(updateTime, 1000)
+  document.addEventListener('click', closeMenu)
+  document.addEventListener('keydown', onKey)
   onUnmounted(() => {
-    clearInterval(timeInterval)
-    document.removeEventListener('click', closeUserMenu)
+    clearInterval(interval)
+    document.removeEventListener('click', closeMenu)
+    document.removeEventListener('keydown', onKey)
   })
 })
-
-// Prevent click propagation in dropdown
-const stopPropagation = (e: Event) => {
-  e.stopPropagation()
-}
 </script>
 
 <style scoped>
-/* ==========================================================================
-   SHELL LAYOUT - PREMIUM DESIGN
-   ========================================================================== */
-
 .shell {
+  --b: var(--border-default);
+  --b2: var(--border-strong);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: var(--color-background);
+  background: var(--surface-0);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
 }
 
-/* ==========================================================================
-   HEADER
-   ========================================================================== */
-
-.shell-header {
-  height: var(--header-height);
-  display: flex;
-  align-items: center;
-  gap: var(--space-xl);
-  padding: 0 var(--space-xl);
-  border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-fixed);
-}
-
-.shell-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex-shrink: 0;
-}
-
-.shell-logo-container {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.shell-logo {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-lg);
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-xl);
-  background: var(--gradient-primary);
-  box-shadow: var(--shadow-glow);
-}
-
-.shell-logo-text {
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-lg);
-  letter-spacing: -0.5px;
-}
-
-.shell-brand-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.shell-brand-name {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  letter-spacing: -0.25px;
-}
-
-.shell-brand-subtitle {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.shell-scanner {
-  position: relative;
-  width: 40px;
-  height: 20px;
-  overflow: hidden;
-}
-
-.scanner-line {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 100%;
+/* CYBER-PALANTIR frame accent under header */
+.header-glow {
   height: 2px;
-  background: var(--gradient-aurora);
-  animation: scan 2s linear infinite;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), transparent 60%);
   opacity: 0.6;
 }
 
-@keyframes scan {
-  0% { left: -100%; }
-  100% { left: 100%; }
+/* ============ HEADER ============ */
+.shell-header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 10px 0 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--b);
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
 
-/* ==========================================================================
-   NAVIGATION
-   ========================================================================== */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 18px;
+  border-right: 1px solid var(--b);
+  flex-shrink: 0;
+}
+.brand-logo {
+  width: 14px;
+  height: 22px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  border-radius: 1px;
+  box-shadow: var(--glow-accent);
+}
+.brand-divider { width: 1px; height: 18px; background: var(--b2); }
+.brand-text { display: flex; flex-direction: column; line-height: 1; }
+.brand-word {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--fg-primary);
+}
+.brand-sub {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+}
 
 .shell-nav {
   display: flex;
-  gap: var(--space-xs);
+  align-items: center;
+  height: 100%;
   flex: 1;
-  max-width: 600px;
+  min-width: 0;
+  gap: 2px;
+  padding: 0 8px;
 }
-
-.shell-link {
+.nav-link {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  position: relative;
-  overflow: hidden;
+  height: 100%;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 150ms, background 150ms;
 }
-
-.shell-link::before {
+.nav-link:hover { color: var(--fg-secondary); background: var(--surface-2); }
+.nav-link.active { color: var(--fg-primary); }
+.nav-link.active::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  left: 8px;
+  right: 8px;
   bottom: 0;
-  background: var(--gradient-primary);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: var(--glow-accent);
 }
 
-.shell-link:hover {
-  color: var(--color-text);
-  background: rgba(59, 130, 246, 0.1);
-}
-
-.shell-link:hover::before {
-  opacity: 0.1;
-}
-
-.shell-link.active {
-  color: var(--color-primary-400);
-  background: rgba(59, 130, 246, 0.15);
-}
-
-.shell-link.active::before {
-  opacity: 0.2;
-}
-
-.shell-link-icon {
-  font-size: var(--font-size-base);
-}
-
-.shell-link-label {
-  font-size: var(--font-size-sm);
-}
-
-.shell-nav-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-left: auto;
-}
-
-.dot-success { background: var(--color-success-500); box-shadow: 0 0 10px var(--color-success-500); }
-.dot-warning { background: var(--color-warning-500); box-shadow: 0 0 10px var(--color-warning-500); }
-.dot-info { background: var(--color-info-500); box-shadow: 0 0 10px var(--color-info-500); }
-.dot-danger { background: var(--color-danger-500); box-shadow: 0 0 10px var(--color-danger-500); }
-.dot-yellow { background: var(--color-warning-400); box-shadow: 0 0 10px var(--color-warning-400); }
-.dot-green { background: var(--color-success-400); box-shadow: 0 0 10px var(--color-success-400); }
-
-/* ==========================================================================
-   CONTROL CENTER
-   ========================================================================== */
-
-.shell-ctrl {
+.header-right {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 6px;
+  padding: 0 6px;
+  border-left: 1px solid var(--b);
   flex-shrink: 0;
 }
 
-.ctrl-actions {
+.h-search {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-}
-
-.ctrl-btn {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-lg);
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--surface-0);
+  border: 1px solid var(--b);
+  border-radius: 3px;
+  color: var(--fg-muted);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.h-search:hover { border-color: rgba(58, 160, 255, 0.4); box-shadow: 0 0 0 2px var(--accent-glow); }
+.h-search-txt { font-size: 12px; }
+.h-kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--fg-muted);
+  border: 1px solid var(--b2);
+  border-radius: 2px;
+  padding: 1px 4px;
 }
 
-.ctrl-btn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-  border-color: var(--color-border-light);
-  transform: scale(1.05);
+.sys-led { display: flex; align-items: center; gap: 6px; padding: 0 8px; }
+.led-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--status-success);
+  box-shadow: var(--glow-status);
+  animation: ledPulse 2.2s ease-in-out infinite;
+}
+.sys-led.busy .led-dot { background: var(--status-warning); box-shadow: 0 0 8px rgba(251,191,36,0.6); }
+.led-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--fg-secondary);
+  text-transform: uppercase;
+}
+.sys-led.busy .led-label { color: var(--status-warning); }
+@keyframes ledPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.h-clock {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-secondary);
+  padding: 0 6px;
+  letter-spacing: 0.5px;
 }
 
-.ctrl-btn:active {
-  transform: scale(0.95);
+.h-icon {
+  width: 28px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent; border-radius: 3px;
+  color: var(--fg-muted); cursor: pointer;
+  transition: color 150ms, border-color 150ms, background 150ms;
 }
+.h-icon:hover { color: var(--fg-primary); background: var(--surface-2); border-color: var(--b); }
 
-.ctrl-icon {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ctrl-badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 18px;
-  height: 18px;
-  background: var(--color-danger-500);
-  color: white;
-  font-size: 10px;
-  font-weight: var(--font-weight-bold);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--color-surface);
-}
-
-/* ==========================================================================
-   USER MENU
-   ========================================================================== */
-
-.ctrl-user {
-  position: relative;
-}
-
-.user-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.user-btn:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-border-light);
-}
-
+.user { display: flex; align-items: center; cursor: pointer; }
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--fg-secondary); background: var(--surface-2);
+  border: 1px solid var(--b2); border-radius: 3px;
 }
+.user-avatar.lg { width: 30px; height: 30px; font-size: 12px; }
 
-.user-info {
-  display: flex;
-  flex-direction: column;
+.user-menu {
+  position: absolute; top: 48px; right: 8px; width: 220px;
+  background: var(--surface-2); border: 1px solid var(--b2); border-radius: 4px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45); z-index: 60;
 }
-
-.user-name {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+.um-head { display: flex; align-items: center; gap: 10px; padding: 12px; }
+.um-name { font-size: 12px; font-weight: 600; color: var(--fg-primary); }
+.um-mail { font-size: 10px; color: var(--fg-muted); }
+.um-sep { height: 1px; background: var(--b); }
+.um-item {
+  padding: 7px 12px; font-size: 11px; color: var(--fg-secondary);
+  cursor: pointer; transition: background 150ms, color 150ms;
 }
+.um-item:hover { background: var(--surface-active); color: var(--fg-primary); }
+.um-item.danger { color: var(--status-error); }
+.um-item.danger:hover { background: color-mix(in srgb, var(--status-error) 10%, transparent); }
 
-.user-role {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.user-chevron {
-  color: var(--color-text-muted);
-  transition: transform var(--transition-fast);
-}
-
-.ctrl-user.open .user-chevron {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
-  min-width: 280px;
-  padding: var(--space-sm);
-  animation: fadeInScale var(--transition-normal);
-}
-
-.dropdown-menu.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.dropdown-header {
-  padding: var(--space-sm);
-}
-
-.user-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-sm);
-}
-
-.user-card-avatar {
-  width: 48px;
-  height: 48px;
-}
-
-.user-card-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-card-name {
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-base);
-}
-
-.user-card-email {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.dropdown-item:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-}
-
-.dropdown-item-danger {
-  color: var(--color-danger-500);
-}
-
-.dropdown-item-danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.dropdown-icon {
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dropdown-divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: var(--space-sm) 0;
-}
-
-/* ==========================================================================
-   MAIN CONTENT
-   ========================================================================== */
-
+/* ============ CONTENT ============ */
 .shell-content {
   flex: 1;
-  padding: var(--space-xl);
+  min-height: 0;
+  padding: 12px;
   overflow-y: auto;
 }
 
-/* ==========================================================================
-   FOOTER
-   ========================================================================== */
-
+/* ============ FOOTER ============ */
 .shell-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-md) var(--space-xl);
-  border-top: 1px solid var(--color-border);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  gap: 8px;
+  min-height: 24px;
+  padding: 0 12px;
+  border-top: 1px solid var(--b);
+  background: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  color: var(--fg-muted);
+}
+.f-cell { color: var(--fg-secondary); }
+.f-cell.mono { color: var(--fg-muted); }
+.f-sep { color: var(--b2); }
+.f-spacer { flex: 1; }
+.f-status { display: flex; align-items: center; gap: 6px; color: var(--status-success); letter-spacing: 1px; }
+.f-led {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--status-success);
+  box-shadow: var(--glow-status);
+  animation: ledPulse 1.6s ease-in-out infinite;
 }
 
-.footer-left,
-.footer-center,
-.footer-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
+/* ============ COMMAND PALETTE ============ */
+.cmd-overlay {
+  position: fixed; inset: 0;
+  background: rgba(4, 8, 18, 0.6);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 12vh; z-index: 80;
+}
+.cmd-palette {
+  width: 560px; max-width: 92vw;
+  background: var(--surface-2);
+  border: 1px solid var(--accent-2-glow);
+  border-radius: 4px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), var(--glow-accent);
+  overflow: hidden;
+}
+.cmd-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--b);
+  color: var(--fg-muted);
+}
+.cmd-head input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--fg-primary); font-family: var(--font-sans); font-size: 14px;
+}
+.cmd-head input::placeholder { color: var(--fg-muted); }
+.cmd-head kbd, .cmd-foot kbd {
+  font-family: var(--font-mono); font-size: 10px; color: var(--fg-secondary);
+  border: 1px solid var(--b2); border-radius: 2px; padding: 1px 5px;
+}
+.cmd-list { max-height: 320px; overflow-y: auto; padding: 6px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; text-decoration: none; color: var(--fg-secondary); cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.cmd-item:hover { background: var(--surface-active); color: var(--fg-primary); border-left-color: var(--accent); }
+.cmd-kind {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.5px;
+  padding: 2px 6px; border: 1px solid var(--b2); border-radius: 2px;
+  color: var(--fg-muted); flex-shrink: 0;
+}
+.cmd-title { flex: 1; font-size: 12px; }
+.cmd-path { font-family: var(--font-mono); font-size: 10px; color: var(--fg-muted); }
+.cmd-empty { padding: 20px; text-align: center; font-size: 12px; color: var(--fg-muted); }
+.cmd-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px; border-top: 1px solid var(--b);
+  font-size: 10px; color: var(--fg-muted);
+}
+.cmd-foot-brand {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  color: var(--accent);
 }
 
-.footer-version {
-  font-weight: var(--font-weight-medium);
+/* ============ LIGHT THEME ============ */
+.shell[data-theme='light'] {
+  --surface-0: #f5f6f8;
+  --surface-1: #ffffff;
+  --surface-2: #eceef1;
+  --surface-active: #e1e4e9;
+  --fg-primary: #16181d;
+  --fg-secondary: #4a4f58;
+  --fg-muted: #7a8089;
+  --border-default: #e2e4e8;
+  --border-strong: #c9cdd4;
 }
 
-.footer-divider {
-  color: var(--color-border);
-}
-
-.footer-status {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.status-dot.online {
-  background: var(--color-success-500);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.footer-link {
-  color: var(--color-text-muted);
-  transition: color var(--transition-fast);
-}
-
-.footer-link:hover {
-  color: var(--color-primary-400);
-}
-
-/* ==========================================================================
-   RESPONSIVE DESIGN
-   ========================================================================== */
-
-@media (max-width: 1024px) {
-  .shell-header {
-    gap: var(--space-md);
-  }
-  
-  .shell-brand-info {
-    display: none;
-  }
-  
-  .shell-nav {
-    display: none;
-  }
-  
-  .shell-ctrl {
-    gap: var(--space-xs);
-  }
-  
-  .user-info {
-    display: none;
-  }
-}
-
-@media (max-width: 640px) {
-  .shell-header {
-    padding: 0 var(--space-md);
-  }
-  
-  .shell-content {
-    padding: var(--space-md);
-  }
-  
-  .shell-footer {
-    flex-direction: column;
-    gap: var(--space-sm);
-    text-align: center;
-  }
-  
-  .footer-left,
-  .footer-center,
-  .footer-right {
-    justify-content: center;
-  }
-}
-
-/* ==========================================================================
-   NEON EFFECT
-   ========================================================================== */
-
-.neon {
-  position: relative;
-}
-
-.neon-primary::before,
-.neon-primary::after {
-  content: '';
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  z-index: -1;
-}
-
-.neon-primary::before {
-  background: var(--color-primary-500);
-  filter: blur(10px);
-  opacity: 0.3;
-}
-
-.neon-primary::after {
-  background: var(--color-primary-400);
-  filter: blur(20px);
-  opacity: 0.1;
-}
-
-/* ==========================================================================
-   GLASS EFFECT
-   ========================================================================== */
-
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-}
-
-/* ==========================================================================
-   ANIMATIONS
-   ========================================================================== */
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* ==========================================================================
-   ACCESSIBILITY
-   ========================================================================== */
-
-:focus-visible {
-  outline: 2px solid var(--color-primary-500);
-  outline-offset: 2px;
-}
-
-/* ==========================================================================
-   REDUCED MOTION
-   ========================================================================== */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+@media (max-width: 768px) {
+  .brand-sub { display: none; }
+  .h-clock { display: none; }
+  .sys-led .led-label { display: none; }
+  .h-search-txt, .h-kbd { display: none; }
+  .nav-link { padding: 0 10px; }
 }
 </style>

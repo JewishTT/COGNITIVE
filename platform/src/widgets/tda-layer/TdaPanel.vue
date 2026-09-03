@@ -20,7 +20,7 @@
       <!-- Components Tab -->
       <div v-if="activeTab === 'components'" class="os-tda-section">
         <div class="os-tda-section-header">
-          <h4>[38;5;220mConnected Components (H0)[0m</h4>
+          <h4>Connected Components (H0)</h4>
           <span class="os-tda-section-count">{{ result.components?.length || 0 }}</span>
         </div>
         
@@ -37,7 +37,7 @@
               <div class="os-tda-item-info">
                 <span class="os-tda-item-title">Component {{ index + 1 }}</span>
                 <span class="os-tda-item-meta">
-                  {{ component.size }} nodes [38;5;240m|[0m {{ component.edgeCount }} edges
+                  {{ component.size }} nodes | {{ component.edgeCount }} edges
                 </span>
               </div>
             </div>
@@ -51,14 +51,14 @@
           </div>
         </div>
         <div v-else class="os-tda-empty-state">
-          <p>[38;5;240mNo connected components found[0m</p>
+          <p>No connected components found</p>
         </div>
       </div>
 
       <!-- Cycles Tab -->
       <div v-if="activeTab === 'cycles'" class="os-tda-section">
         <div class="os-tda-section-header">
-          <h4>[38;5;214mCycles (H1)[0m</h4>
+          <h4>Cycles (H1)</h4>
           <span class="os-tda-section-count">{{ result.cycles?.length || 0 }}</span>
         </div>
         
@@ -71,18 +71,18 @@
             @click="toggleHighlight(cycle.nodeIds)"
           >
             <div class="os-tda-item-header">
-              <span class="os-tda-item-icon">[38;5;214m[0m</span>
+              <span class="os-tda-item-icon"></span>
               <div class="os-tda-item-info">
                 <span class="os-tda-item-title">Cycle {{ index + 1 }}</span>
                 <span class="os-tda-item-meta">
-                  {{ cycle.length }} nodes [38;5;240m|[0m {{ cycle.filled ? 'Filled' : 'Hollow' }}
+                  {{ cycle.length }} nodes | {{ cycle.filled ? 'Filled' : 'Hollow' }}
                 </span>
               </div>
             </div>
           </div>
         </div>
         <div v-else class="os-tda-empty-state">
-          <p>[38;5;240mNo cycles found [38;5;240m|[0m Graph is a forest or tree[0m</p>
+          <p>No cycles found | Graph is a forest or tree</p>
         </div>
       </div>
 
@@ -90,7 +90,7 @@
       <div v-if="activeTab === 'critical'" class="os-tda-section">
         <div class="os-tda-subsection">
           <div class="os-tda-section-header">
-            <h4>[38;5;196mBridges[0m</h4>
+            <h4>Bridges</h4>
             <span class="os-tda-section-count">{{ result.bridges?.length || 0 }}</span>
           </div>
           
@@ -102,22 +102,22 @@
               @click="toggleHighlight([bridge.source, bridge.target])"
             >
               <div class="os-tda-item-header">
-                <span class="os-tda-item-icon">[38;5;196m[0m</span>
+                <span class="os-tda-item-icon"></span>
                 <div class="os-tda-item-info">
-                  <span class="os-tda-item-title">{{ bridge.fromLabel }} [38;5;240m[0m[38;5;240m[0m[38;5;240m[0m {{ bridge.toLabel }}</span>
+                  <span class="os-tda-item-title">{{ bridge.fromLabel }}  {{ bridge.toLabel }}</span>
                   <span class="os-tda-item-meta">{{ bridge.label }}</span>
                 </div>
               </div>
             </div>
           </div>
           <div v-else class="os-tda-empty-state">
-            <p>[38;5;240mNo bridges found [38;5;240m|[0m Graph has no critical connections[0m</p>
+            <p>No bridges found | Graph has no critical connections</p>
           </div>
         </div>
 
         <div class="os-tda-subsection">
           <div class="os-tda-section-header">
-            <h4>[38;5;196mCut Vertices (Articulation Points)[0m</h4>
+            <h4>Cut Vertices (Articulation Points)</h4>
             <span class="os-tda-section-count">{{ result.cutVertices?.length || 0 }}</span>
           </div>
           
@@ -129,7 +129,7 @@
               @click="toggleHighlight([vertex.nodeId])"
             >
               <div class="os-tda-item-header">
-                <span class="os-tda-item-icon">[38;5;196m[0m</span>
+                <span class="os-tda-item-icon"></span>
                 <div class="os-tda-item-info">
                   <span class="os-tda-item-title">{{ vertex.label }}</span>
                   <span class="os-tda-item-meta">
@@ -140,7 +140,7 @@
             </div>
           </div>
           <div v-else class="os-tda-empty-state">
-            <p>[38;5;240mNo cut vertices found [38;5;240m|[0m Graph is biconnected[0m</p>
+            <p>No cut vertices found | Graph is biconnected</p>
           </div>
         </div>
       </div>
@@ -149,7 +149,7 @@
       <div v-if="activeTab === 'centrality'" class="os-tda-section">
         <div class="os-tda-subsection">
           <div class="os-tda-section-header">
-            <h4>[38;5;220mBetweenness Centrality[0m</h4>
+            <h4>Betweenness Centrality</h4>
             <span class="os-tda-section-count">{{ topBetweenness.length }}</span>
           </div>
           
@@ -165,20 +165,20 @@
                 <div class="os-tda-item-info">
                   <span class="os-tda-item-title">{{ node.label }}</span>
                   <span class="os-tda-item-meta">
-                    [38;5;220mBetweenness: {{ node.betweenness.toFixed(4) }}[0m
+                    Betweenness: {{ node.betweenness.toFixed(4) }}
                   </span>
                 </div>
               </div>
             </div>
           </div>
           <div v-else class="os-tda-empty-state">
-            <p>[38;5;240mNo centrality data available[0m</p>
+            <p>No centrality data available</p>
           </div>
         </div>
 
         <div class="os-tda-subsection">
           <div class="os-tda-section-header">
-            <h4>[38;5;220mK-Core Centrality[0m</h4>
+            <h4>K-Core Centrality</h4>
             <span class="os-tda-section-count">{{ topKCore.length }}</span>
           </div>
           
@@ -194,14 +194,14 @@
                 <div class="os-tda-item-info">
                   <span class="os-tda-item-title">{{ node.label }}</span>
                   <span class="os-tda-item-meta">
-                    [38;5;220mK-Core: {{ node.kCore }}[0m [38;5;240m|[0m Degree: {{ node.degree }}
+                    K-Core: {{ node.kCore }} | Degree: {{ node.degree }}
                   </span>
                 </div>
               </div>
             </div>
           </div>
           <div v-else class="os-tda-empty-state">
-            <p>[38;5;240mNo k-core data available[0m</p>
+            <p>No k-core data available</p>
           </div>
         </div>
       </div>
@@ -209,7 +209,7 @@
       <!-- Clusters Tab -->
       <div v-if="activeTab === 'clusters'" class="os-tda-section">
         <div class="os-tda-section-header">
-          <h4>[38;5;208mClusters[0m</h4>
+          <h4>Clusters</h4>
           <span class="os-tda-section-count">{{ result.clusters?.length || 0 }}</span>
         </div>
         
@@ -226,21 +226,21 @@
               <div class="os-tda-item-info">
                 <span class="os-tda-item-title">Cluster {{ index + 1 }}</span>
                 <span class="os-tda-item-meta">
-                  {{ cluster.size }} nodes [38;5;240m|[0m Rep: {{ cluster.representative }}
+                  {{ cluster.size }} nodes | Rep: {{ cluster.representative }}
                 </span>
               </div>
             </div>
           </div>
         </div>
         <div v-else class="os-tda-empty-state">
-          <p>[38;5;240mNo clusters found[0m</p>
+          <p>No clusters found</p>
         </div>
       </div>
 
       <!-- Barcode Tab -->
       <div v-if="activeTab === 'barcode'" class="os-tda-section">
         <div class="os-tda-section-header">
-          <h4>[38;5;220mPersistence Barcode[0m</h4>
+          <h4>Persistence Barcode</h4>
           <span class="os-tda-section-count">{{ result.bars?.length || 0 }}</span>
         </div>
         
@@ -261,12 +261,12 @@
               ></div>
             </div>
             <span class="os-tda-bar-label">
-              {{ bar.size }} nodes [38;5;240m|[0m Birth: {{ bar.birth.toFixed(2) }}
+              {{ bar.size }} nodes | Birth: {{ bar.birth.toFixed(2) }}
             </span>
           </div>
         </div>
         <div v-else class="os-tda-empty-state">
-          <p>[38;5;240mNo persistence data available[0m</p>
+          <p>No persistence data available</p>
         </div>
       </div>
     </div>
@@ -294,12 +294,12 @@ const activeTab = ref<'components' | 'cycles' | 'critical' | 'centrality' | 'clu
 
 // Tabs configuration
 const tabs = computed(() => [
-  { key: 'components', label: 'Components', icon: '[38;5;220mH0[0m', count: props.result?.components?.length || 0 },
-  { key: 'cycles', label: 'Cycles', icon: '[38;5;214mH1[0m', count: props.result?.cycles?.length || 0 },
-  { key: 'critical', label: 'Critical', icon: '[38;5;196m![0m', count: (props.result?.bridges?.length || 0) + (props.result?.cutVertices?.length || 0) },
-  { key: 'centrality', label: 'Centrality', icon: '[38;5;220m*[0m', count: props.result?.metrics?.length || 0 },
-  { key: 'clusters', label: 'Clusters', icon: '[38;5;208m#[0m', count: props.result?.clusters?.length || 0 },
-  { key: 'barcode', label: 'Barcode', icon: '[38;5;220m=[0m', count: props.result?.bars?.length || 0 }
+  { key: 'components', label: 'Components', icon: 'H0', count: props.result?.components?.length || 0 },
+  { key: 'cycles', label: 'Cycles', icon: 'H1', count: props.result?.cycles?.length || 0 },
+  { key: 'critical', label: 'Critical', icon: '!', count: (props.result?.bridges?.length || 0) + (props.result?.cutVertices?.length || 0) },
+  { key: 'centrality', label: 'Centrality', icon: '*', count: props.result?.metrics?.length || 0 },
+  { key: 'clusters', label: 'Clusters', icon: '#', count: props.result?.clusters?.length || 0 },
+  { key: 'barcode', label: 'Barcode', icon: '=', count: props.result?.bars?.length || 0 }
 ])
 
 // Computed properties for top metrics

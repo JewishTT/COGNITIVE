@@ -962,3 +962,270 @@ a:focus,
 .os-graph-empty-demo { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 .os-btn-demo { border-color: var(--accent); color: var(--accent); background: rgba(34,211,238,0.1); }
 .os-btn-demo:hover { background: rgba(34,211,238,0.2); }
+
+/* ==========================================================================
+   PLATFORM VIEWS & TILES
+   ========================================================================== */
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.view-head h1 {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-sm);
+}
+
+.view-head p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+.view-embed {
+  height: 100%;
+  min-height: 0;
+}
+
+.view-head-embed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.view-head-embed h1 {
+  margin-bottom: 0;
+}
+
+.embed-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.embed-frame {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.embed-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-lg);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  color: inherit;
+}
+
+.tile:hover {
+  border-color: var(--color-primary-500);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.tile-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.tile strong {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.tile small {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.tile-chip {
+  margin-top: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   CHIP & BADGE EXTRAS
+   ========================================================================== */
+
+.chip--down {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-danger-400);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ==========================================================================
+   BUTTON EXTRAS
+   ========================================================================== */
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-sm {
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--font-size-xs);
+}
+
+/* ==========================================================================
+   FORM EXTRAS
+   ========================================================================== */
+
+.form-select {
+  appearance: auto;
+}
+
+.form-select-sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-xs);
+}
+
+/* ==========================================================================
+   FACTORY / OSINT STATUS
+   ========================================================================== */
+
+.osint-status-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-md);
+}
+
+.osint-status-card strong {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  display: block;
+}
+
+.osint-status-card small {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.osint-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-success-500);
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.osint-status-dot--down {
+  background: var(--color-danger-500);
+  animation: none;
+}
+
+.osint-status-dot--warn {
+  background: var(--color-warning-500);
+}
+
+.osint-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+  gap: var(--space-md);
+  color: var(--color-text-muted);
+}
+
+.osint-placeholder strong {
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ==========================================================================
+   ECOMMERCE STATS
+   ========================================================================== */
+
+.com-stats {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.com-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  min-width: 100px;
+}
+
+.com-stat strong {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-400);
+  line-height: 1;
+}
+
+.com-stat small {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   TRANSITIONS
+   ========================================================================== */
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-normal);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

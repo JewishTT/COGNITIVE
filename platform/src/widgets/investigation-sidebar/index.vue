@@ -98,7 +98,7 @@ async function load() {
 async function createInv() {
   invBusy.value = true
   try {
-    const inv = await investigationApi.create(newInvName.value, newInvDesc.value)
+    const inv = await investigationApi.create(newInvName.value)
     investigations.value.push(inv)
     newInvName.value = ''
     newInvDesc.value = ''

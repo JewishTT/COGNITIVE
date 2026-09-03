@@ -4,5 +4,6 @@
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/flowsint" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/flowsint/thebigbrother-engine" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/spec-kit" vcs="Git" />
   </component>
 </project>

@@ -7,7 +7,13 @@ import { randomUUID } from 'node:crypto'
 import { collectForTarget } from './collect.mjs'
 import { extractEntities } from './extract.mjs'
 import { writeGraph } from './store.mjs'
-import { engineOnline, registerIfMissing } from './flowsint.mjs'
+
+// Services will be injected
+let services = null
+
+export function setServices(svc) {
+  services = svc
+}
 
 export class RunCancelledError extends Error {
   constructor() {
@@ -123,10 +129,9 @@ export async function executeRunSync(target, type) {
   const collector = { stage: null, tool: null, level: 'info', text: '' }
   const onEvent = (level, tool, text) => { collector.level = level; collector.tool = tool; collector.text = text }
   try {
-    await registerIfMissing()
     const collected = await collectForTarget(target, type, onEvent)
     const extracted = await extractEntities(collected, onEvent)
-    const stored = await writeGraph(target, type, collected, extracted, onEvent)
+    const stored = await writeGraph(target, type, collected, extracted, onEvent, null, services)
     return { ok: true, collected, extracted, stored }
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e) }
@@ -144,14 +149,11 @@ async function executeRun(id) {
 
   try {
     checkCancelled(r.ac)
-    const online = await engineOnline()
+    
+    // Neo4j всегда доступен через наш сервис
+    const online = true
     r.enginesOnline = online
-    emit(id, { ts: Date.now(), level: 'info', tool: 'engine', text: `Движок Flowsint (Neo4j): ${online ? 'доступен' : 'НЕДОСТУПЕН'}` })
-    if (!online) {
-      emit(id, { ts: Date.now(), level: 'warn', tool: 'engine', text: 'Хранение в Neo4j будет пропущено (нет движка)' })
-    } else {
-      await registerIfMissing()
-    }
+    emit(id, { ts: Date.now(), level: 'info', tool: 'engine', text: 'Движок Neo4j: доступен (через сервис)' })
 
     checkCancelled(r.ac)
     const collected = await collectForTarget(r.target, r.type, onEvent, signal)
@@ -163,15 +165,9 @@ async function executeRun(id) {
       emails: extracted.emails.length, phones: extracted.phones.length, ips: extracted.ips.length,
       persons: extracted.persons.length, orgs: extracted.orgs.length, nlpAvailable: extracted.nlpAvailable })
 
-    let stored = null
-    if (online) {
-      checkCancelled(r.ac)
-      stored = await writeGraph(r.target, r.type, collected, extracted, onEvent, signal)
-      r.stages.push({ name: 'store', label: 'Neo4j', sketchId: stored.sketchId, nodes: stored.nodesCreated, edges: stored.edgesCreated })
-    } else {
-      stored = { sketchId: null, nodesCreated: 0, edgesCreated: 0, skipped: true }
-      r.stages.push({ name: 'store', label: 'Neo4j', sketchId: null, nodes: 0, edges: 0, skipped: true })
-    }
+    checkCancelled(r.ac)
+    const stored = await writeGraph(r.target, r.type, collected, extracted, onEvent, signal, services)
+    r.stages.push({ name: 'store', label: 'Neo4j', sketchId: stored.sketchId, nodes: stored.nodesCreated, edges: stored.edgesCreated })
 
     r.summary = { collectedTotal: countAll(collected), nodes: stored.nodesCreated, edges: stored.edgesCreated, sketchId: stored.sketchId }
     r.status = 'done'

@@ -1,10 +1,10 @@
 <template>
   <div class="pipeline-tab">
-    <!-- [38;5;240mPipeline Header with Glass Effect[0m -->
+    <!-- Pipeline Header with Glass Effect -->
     <div class="pipeline-header glass-card">
       <div class="pipeline-info">
         <h2 class="pipeline-title">
-          <span class="title-icon">🏭</span>
+          <span class="title-icon"><UiIcon name="factory" :size="20" /></span>
           OSINT Конвейеры
         </h2>
         <p class="pipeline-description">
@@ -23,10 +23,10 @@
       </div>
     </div>
 
-    <!-- [38;5;240mQuick Stats Bar[0m -->
+    <!-- Quick Stats Bar -->
     <div class="pipeline-stats glass-card">
       <div class="stat-item">
-        <div class="stat-icon">📋</div>
+        <div class="stat-icon"><UiIcon name="clipboard" :size="18" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ pipelines.length }}</div>
           <div class="stat-label">Конвейеров</div>
@@ -34,7 +34,7 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <div class="stat-icon">✅</div>
+        <div class="stat-icon"><UiIcon name="checkCircle" :size="18" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ activePipelines }}</div>
           <div class="stat-label">Активных</div>
@@ -42,7 +42,7 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <div class="stat-icon">⏳</div>
+        <div class="stat-icon"><UiIcon name="timer" :size="18" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ pendingTasks }}</div>
           <div class="stat-label">Задач в очереди</div>
@@ -50,7 +50,7 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <div class="stat-icon">📊</div>
+        <div class="stat-icon"><UiIcon name="chartBar" :size="18" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ completedTasks }}</div>
           <div class="stat-label">Выполнено</div>
@@ -58,7 +58,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mPipeline Tabs[0m -->
+    <!-- Pipeline Tabs -->
     <div class="pipeline-tabs glass-card">
       <button 
         v-for="tab in pipelineTabs" 
@@ -67,20 +67,20 @@
         :class="{ active: activePipelineTab === tab.id }"
         @click="activePipelineTab = tab.id"
       >
-        <span class="tab-icon">{{ tab.icon }}</span>
+        <span class="tab-icon"><UiIcon :name="tab.icon" :size="15" /></span>
         <span class="tab-label">{{ tab.label }}</span>
         <span v-if="tab.count" class="tab-count">{{ tab.count }}</span>
       </button>
     </div>
 
-    <!-- [38;5;240mPipeline List View (Default)[0m -->
+    <!-- Pipeline List View (Default) -->
     <div class="pipeline-content" v-if="activePipelineTab === 'list'">
       <div class="pipeline-list">
         <div class="pipeline-card glass-card" v-for="pipeline in pipelines" :key="pipeline.id">
           <div class="pipeline-card-header">
             <div class="pipeline-card-info">
               <div class="pipeline-name">
-                <span class="pipeline-icon">{{ pipeline.icon }}</span>
+                <span class="pipeline-icon"><UiIcon :name="pipeline.icon" :size="16" /></span>
                 <span>{{ pipeline.name }}</span>
               </div>
               <div class="pipeline-status" :class="pipeline.status">
@@ -91,15 +91,15 @@
             <div class="pipeline-card-description">{{ pipeline.description }}</div>
             <div class="pipeline-card-meta">
               <div class="meta-item">
-                <span class="meta-icon">📅</span>
+                <span class="meta-icon"><UiIcon name="calendar" :size="13" /></span>
                 <span class="meta-text">{{ formatDate(pipeline.createdAt) }}</span>
               </div>
               <div class="meta-item">
-                <span class="meta-icon">⏱️</span>
+                <span class="meta-icon"><UiIcon name="timer" :size="13" /></span>
                 <span class="meta-text">{{ pipeline.duration }}с</span>
               </div>
               <div class="meta-item">
-                <span class="meta-icon">🔄</span>
+                <span class="meta-icon"><UiIcon name="refresh" :size="13" /></span>
                 <span class="meta-text">{{ pipeline.executions }}</span>
               </div>
             </div>
@@ -133,7 +133,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mPipeline Editor (When Editing)[0m -->
+    <!-- Pipeline Editor (When Editing) -->
     <div class="pipeline-content" v-else-if="activePipelineTab === 'editor' && editingPipeline">
       <div class="pipeline-editor glass-card">
         <div class="editor-header">
@@ -320,7 +320,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mPipeline Execution View[0m -->
+    <!-- Pipeline Execution View -->
     <div class="pipeline-content" v-else-if="activePipelineTab === 'executions'">
       <div class="executions-container">
         <div class="executions-header">
@@ -388,7 +388,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mPipeline Templates View[0m -->
+    <!-- Pipeline Templates View -->
     <div class="pipeline-content" v-else-if="activePipelineTab === 'templates'">
       <div class="templates-container">
         <div class="templates-header">
@@ -442,7 +442,7 @@ const executionFilter = ref('all')
 const pipelines = ref([
   {
     id: 'pipeline_1',
-    icon: '🔍',
+    icon: 'search',
     name: 'Поиск и обогащение',
     description: 'Автоматический поиск и обогащение сущностей из различных источников',
     status: 'active',
@@ -458,7 +458,7 @@ const pipelines = ref([
   },
   {
     id: 'pipeline_2',
-    icon: '📊',
+    icon: 'chartBar',
     name: 'TDA Анализ',
     description: 'Топологический анализ данных с автоматическим обнаружение сообществ',
     status: 'active',
@@ -474,7 +474,7 @@ const pipelines = ref([
   },
   {
     id: 'pipeline_3',
-    icon: '🔄',
+    icon: 'refresh',
     name: 'Регулярное обновление',
     description: 'Регулярное обновление данных из внешних источников',
     status: 'inactive',
@@ -491,7 +491,7 @@ const pipelines = ref([
   },
   {
     id: 'pipeline_4',
-    icon: '🚨',
+    icon: 'alert',
     name: 'Мониторинг угроз',
     description: 'Мониторинг угроз в реальном времени',
     status: 'active',
@@ -563,7 +563,7 @@ const executions = ref([
 const templates = ref([
   {
     id: 'template_1',
-    icon: '🔍',
+    icon: 'search',
     name: 'Быстрое обогащение',
     description: 'Шаблон для быстрого обогащения данных из основных источников',
     category: 'Обогащение',
@@ -571,7 +571,7 @@ const templates = ref([
   },
   {
     id: 'template_2',
-    icon: '📊',
+    icon: 'chartBar',
     name: 'Полный анализ',
     description: 'Полный анализ графа с TDA и обнаружение сообществ',
     category: 'Анализ',
@@ -579,7 +579,7 @@ const templates = ref([
   },
   {
     id: 'template_3',
-    icon: '🔄',
+    icon: 'refresh',
     name: 'Регулярная синхронизация',
     description: 'Шаблон для регулярной синхронизации данных',
     category: 'Синхронизация',
@@ -587,7 +587,7 @@ const templates = ref([
   },
   {
     id: 'template_4',
-    icon: '🚨',
+    icon: 'alert',
     name: 'Мониторинг безопасности',
     description: 'Шаблон для мониторинга безопасности в реальном времени',
     category: 'Безопасность',
@@ -636,10 +636,10 @@ const filteredExecutions = computed(() => {
 
 // Pipeline tabs
 const pipelineTabs = computed(() => [
-  { id: 'list', label: 'Список', icon: '📋', count: pipelines.value.length },
-  { id: 'editor', label: 'Редактор', icon: '✏️', count: editingPipeline.value ? 1 : 0 },
-  { id: 'executions', label: 'Выполнения', icon: '⏱️', count: executions.value.length },
-  { id: 'templates', label: 'Шаблоны', icon: '📑', count: templates.value.length },
+  { id: 'list', label: 'Список', icon: 'clipboard', count: pipelines.value.length },
+  { id: 'editor', label: 'Редактор', icon: 'edit', count: editingPipeline.value ? 1 : 0 },
+  { id: 'executions', label: 'Выполнения', icon: 'timer', count: executions.value.length },
+  { id: 'templates', label: 'Шаблоны', icon: 'fileText', count: templates.value.length },
 ])
 
 // Status labels
@@ -656,7 +656,7 @@ const statusLabels = {
 const createPipeline = () => {
   editingPipeline.value = {
     id: `pipeline_${Date.now()}`,
-    icon: '🏭',
+    icon: 'factory',
     name: 'Новый конвейер',
     description: '',
     status: 'inactive',

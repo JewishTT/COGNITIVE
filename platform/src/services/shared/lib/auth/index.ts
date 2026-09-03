@@ -1,6 +1,6 @@
 // platform/src/services/shared/lib/auth/index.ts
-// [38;5;240mAuthentication and Authorization Service[0m
-// [38;5;240mJWT-based auth with multi-tenant support for OSINT platform[0m
+// Authentication and Authorization Service
+// JWT-based auth with multi-tenant support for OSINT platform
 
 import {
   UserRole,
@@ -10,11 +10,11 @@ import {
 import { getConfig } from '../../config';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mUser Credentials[0m
+ * User Credentials
  */
 export interface UserCredentials {
   email: string;
@@ -22,7 +22,7 @@ export interface UserCredentials {
 }
 
 /**
- * [38;5;220mUser Registration Data[0m
+ * User Registration Data
  */
 export interface UserRegistrationData extends UserCredentials {
   firstName: string;
@@ -31,7 +31,7 @@ export interface UserRegistrationData extends UserCredentials {
 }
 
 /**
- * [38;5;220mUser Profile[0m
+ * User Profile
  */
 export interface UserProfile {
   id: string;
@@ -46,7 +46,7 @@ export interface UserProfile {
 }
 
 /**
- * [38;5;220mAuthentication Token[0m
+ * Authentication Token
  */
 export interface AuthToken {
   token: string;
@@ -55,7 +55,7 @@ export interface AuthToken {
 }
 
 /**
- * [38;5;220mRefresh Token[0m
+ * Refresh Token
  */
 export interface RefreshToken {
   token: string;
@@ -63,7 +63,7 @@ export interface RefreshToken {
 }
 
 /**
- * [38;5;220mToken Pair (Access + Refresh)[0m
+ * Token Pair (Access + Refresh)
  */
 export interface TokenPair {
   accessToken: string;
@@ -73,7 +73,7 @@ export interface TokenPair {
 }
 
 /**
- * [38;5;220mToken Payload (Decoded JWT)[0m
+ * Token Payload (Decoded JWT)
  */
 export interface TokenPayload {
   sub: string; // user ID
@@ -87,7 +87,7 @@ export interface TokenPayload {
 }
 
 /**
- * [38;5;220mTenant Information[0m
+ * Tenant Information
  */
 export interface Tenant {
   id: string;
@@ -99,7 +99,7 @@ export interface Tenant {
 }
 
 /**
- * [38;5;220mTenant Membership[0m
+ * Tenant Membership
  */
 export interface TenantMembership {
   tenantId: string;
@@ -110,7 +110,7 @@ export interface TenantMembership {
 }
 
 /**
- * [38;5;220mPassword Reset Request[0m
+ * Password Reset Request
  */
 export interface PasswordResetRequest {
   id: string;
@@ -123,7 +123,7 @@ export interface PasswordResetRequest {
 }
 
 /**
- * [38;5;220mEmail Verification Request[0m
+ * Email Verification Request
  */
 export interface EmailVerificationRequest {
   id: string;
@@ -136,11 +136,11 @@ export interface EmailVerificationRequest {
 }
 
 // ============================================================================
-// [38;5;220mJWT SERVICE[0m
+// JWT SERVICE
 // ============================================================================
 
 /**
- * [38;5;220mJWT Service for token management[0m
+ * JWT Service for token management
  */
 export class JwtService {
   private secret: string;
@@ -153,7 +153,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mParse expiresIn string to seconds[0m
+   * Parse expiresIn string to seconds
    */
   private parseExpiresIn(expiresIn: string): number {
     const match = expiresIn.match(/^(\d+)([smhd])$/);
@@ -172,7 +172,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mGenerate Access Token[0m
+   * Generate Access Token
    */
   async generateAccessToken(
     payload: Omit<TokenPayload, 'iat' | 'exp'>
@@ -189,7 +189,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mGenerate Refresh Token[0m
+   * Generate Refresh Token
    */
   async generateRefreshToken(
     userId: string
@@ -208,7 +208,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mGenerate Token Pair[0m
+   * Generate Token Pair
    */
   async generateTokenPair(
     payload: Omit<TokenPayload, 'iat' | 'exp'>
@@ -225,7 +225,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mSign JWT Token[0m
+   * Sign JWT Token
    */
   private async signToken(payload: Record<string, unknown>): Promise<string> {
     // This is a simple implementation
@@ -246,7 +246,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mGenerate HMAC-SHA256 Signature[0m
+   * Generate HMAC-SHA256 Signature
    */
   private async generateSignature(data: string): Promise<string> {
     const encoder = new TextEncoder();
@@ -267,7 +267,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mVerify JWT Token[0m
+   * Verify JWT Token
    */
   async verifyToken(token: string): Promise<TokenPayload> {
     const parts = token.split('.');
@@ -300,7 +300,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mDecode JWT Token (without verification)[0m
+   * Decode JWT Token (without verification)
    */
   decodeToken(token: string): TokenPayload {
     const parts = token.split('.');
@@ -316,7 +316,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mBase64 URL Encode[0m
+   * Base64 URL Encode
    */
   private base64UrlEncode(data: string): string {
     return btoa(data)
@@ -326,7 +326,7 @@ export class JwtService {
   }
 
   /**
-   * [38;5;220mBase64 URL Decode[0m
+   * Base64 URL Decode
    */
   private base64UrlDecode(data: string): string {
     const padded = data.padEnd(data.length + (4 - (data.length % 4)) % 4, '=');
@@ -339,11 +339,11 @@ export class JwtService {
 }
 
 // ============================================================================
-// [38;5;220mAUTH SERVICE[0m
+// AUTH SERVICE
 // ============================================================================
 
 /**
- * [38;5;220mAuthentication Service[0m
+ * Authentication Service
  */
 export class AuthService {
   private jwtService: JwtService;
@@ -356,11 +356,11 @@ export class AuthService {
   }
 
   // ==========================================================================
-  // [38;5;220mUSER MANAGEMENT[0m
+  // USER MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mRegister a new user[0m
+   * Register a new user
    */
   async registerUser(data: UserRegistrationData): Promise<{
     user: UserProfile;
@@ -396,7 +396,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mLogin user with credentials[0m
+   * Login user with credentials
    */
   async login(credentials: UserCredentials): Promise<{
     user: UserProfile;
@@ -429,30 +429,30 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mLogout user[0m
+   * Logout user
    */
   async logout(token: string): Promise<void> {
     // In a real implementation, this would add the token to a blacklist
     // For now, we'll just do nothing
-    console.log(`[38;5;220m[AuthService] User logged out: ${token.substring(0, 8)}...[0m`);
+    console.log(`[AuthService] User logged out: ${token.substring(0, 8)}...`);
   }
 
   /**
-   * [38;5;220mGet user by ID[0m
+   * Get user by ID
    */
   getUserById(id: string): UserProfile | undefined {
     return this.users.get(id);
   }
 
   /**
-   * [38;5;220mGet user by email[0m
+   * Get user by email
    */
   getUserByEmail(email: string): UserProfile | undefined {
     return this.users.get(email);
   }
 
   /**
-   * [38;5;220mList all users[0m
+   * List all users
    */
   listUsers(): UserProfile[] {
     return Array.from(this.users.values()).filter((_, index, self) => {
@@ -462,7 +462,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mUpdate user profile[0m
+   * Update user profile
    */
   async updateUser(
     id: string,
@@ -486,7 +486,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mDelete user[0m
+   * Delete user
    */
   async deleteUser(id: string): Promise<void> {
     const user = this.users.get(id);
@@ -499,11 +499,11 @@ export class AuthService {
   }
 
   // ==========================================================================
-  // [38;5;220mTENANT MANAGEMENT[0m
+  // TENANT MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a new tenant[0m
+   * Create a new tenant
    */
   async createTenant(data: Omit<Tenant, 'id' | 'createdAt' | 'updatedAt'>): Promise<Tenant> {
     const tenant: Tenant = {
@@ -522,21 +522,21 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mGet tenant by ID[0m
+   * Get tenant by ID
    */
   getTenantById(id: string): Tenant | undefined {
     return this.tenants.get(id);
   }
 
   /**
-   * [38;5;220mGet tenant by name[0m
+   * Get tenant by name
    */
   getTenantByName(name: string): Tenant | undefined {
     return this.tenants.get(name);
   }
 
   /**
-   * [38;5;220mList all tenants[0m
+   * List all tenants
    */
   listTenants(): Tenant[] {
     return Array.from(this.tenants.values()).filter((_, index, self) => {
@@ -546,7 +546,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mUpdate tenant[0m
+   * Update tenant
    */
   async updateTenant(
     id: string,
@@ -570,7 +570,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mDelete tenant[0m
+   * Delete tenant
    */
   async deleteTenant(id: string): Promise<void> {
     const tenant = this.tenants.get(id);
@@ -593,11 +593,11 @@ export class AuthService {
   }
 
   // ==========================================================================
-  // [38;5;220mMEMBERSHIP MANAGEMENT[0m
+  // MEMBERSHIP MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mAdd user to tenant[0m
+   * Add user to tenant
    */
   async addUserToTenant(
     tenantId: string,
@@ -631,7 +631,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mRemove user from tenant[0m
+   * Remove user from tenant
    */
   async removeUserFromTenant(tenantId: string, userId: string): Promise<void> {
     const userMemberships = this.memberships.get(userId);
@@ -649,14 +649,14 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mGet user's tenant memberships[0m
+   * Get user's tenant memberships
    */
   getUserMemberships(userId: string): TenantMembership[] {
     return this.memberships.get(userId) || [];
   }
 
   /**
-   * [38;5;220mGet tenant members[0m
+   * Get tenant members
    */
   getTenantMembers(tenantId: string): Array<TenantMembership & { user: UserProfile }> {
     const members: Array<TenantMembership & { user: UserProfile }> = [];
@@ -678,25 +678,25 @@ export class AuthService {
   }
 
   // ==========================================================================
-  // [38;5;220mTOKEN MANAGEMENT[0m
+  // TOKEN MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mVerify access token[0m
+   * Verify access token
    */
   async verifyToken(token: string): Promise<TokenPayload> {
     return this.jwtService.verifyToken(token);
   }
 
   /**
-   * [38;5;220mDecode access token (without verification)[0m
+   * Decode access token (without verification)
    */
   decodeToken(token: string): TokenPayload {
     return this.jwtService.decodeToken(token);
   }
 
   /**
-   * [38;5;220mRefresh access token[0m
+   * Refresh access token
    */
   async refreshToken(refreshToken: string): Promise<TokenPair> {
     const payload = this.jwtService.decodeToken(refreshToken);
@@ -722,11 +722,11 @@ export class AuthService {
   }
 
   // ==========================================================================
-  // [38;5;220mACCESS CONTROL[0m
+  // ACCESS CONTROL
   // ==========================================================================
 
   /**
-   * [38;5;220mCheck if user has permission for a resource[0m
+   * Check if user has permission for a resource
    */
   async checkPermission(
     userId: string,
@@ -748,7 +748,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mCheck if user has role for a resource[0m
+   * Check if user has role for a resource
    */
   async checkRole(
     userId: string,
@@ -770,7 +770,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mGet user's access control entries for a graph[0m
+   * Get user's access control entries for a graph
    */
   async getAccessControlEntries(
     graphId: string
@@ -781,7 +781,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mSet access control for a graph[0m
+   * Set access control for a graph
    */
   async setAccessControl(
     graphId: string,
@@ -799,11 +799,11 @@ export class AuthService {
   }
 
   // ==========================================================================
-  // [38;5;220mUTILITY METHODS[0m
+  // UTILITY METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet default permissions for a role[0m
+   * Get default permissions for a role
    */
   private getDefaultPermissions(role: UserRole): PermissionLevel[] {
     switch (role) {
@@ -821,7 +821,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mHash password (simple implementation)[0m
+   * Hash password (simple implementation)
    */
   async hashPassword(password: string): Promise<string> {
     const encoder = new TextEncoder();
@@ -833,7 +833,7 @@ export class AuthService {
   }
 
   /**
-   * [38;5;220mVerify password (simple implementation)[0m
+   * Verify password (simple implementation)
    */
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     const hashed = await this.hashPassword(password);
@@ -842,11 +842,11 @@ export class AuthService {
 }
 
 // ============================================================================
-// [38;5;220mAUTH MIDDLEWARE[0m
+// AUTH MIDDLEWARE
 // ============================================================================
 
 /**
- * [38;5;220mAuthentication Middleware Options[0m
+ * Authentication Middleware Options
  */
 export interface AuthMiddlewareOptions {
   roles?: UserRole[];
@@ -855,8 +855,8 @@ export interface AuthMiddlewareOptions {
 }
 
 /**
- * [38;5;220mAuthentication Middleware[0m
- * [38;5;240mMiddleware for Express/HTTP handlers[0m
+ * Authentication Middleware
+ * Middleware for Express/HTTP handlers
  */
 export function createAuthMiddleware(
   authService: AuthService,
@@ -908,7 +908,7 @@ export function createAuthMiddleware(
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCES[0m
+// SINGLETON INSTANCES
 // ============================================================================
 
 let jwtService: JwtService | null = null;
@@ -934,7 +934,7 @@ export function resetAuthService(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

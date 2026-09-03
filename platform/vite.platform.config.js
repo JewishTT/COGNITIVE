@@ -34,10 +34,10 @@ export default defineConfig({
         rewrite: (p) => p.replace(/^\/factory/, ''),
       },
       // Глубокое слияние с Flowsint: платформа — это нативный UI движка
-      // Flowsint. Запросы проксируются в flowsint-api (:5001, Neo4j), без
+      // Flowsint. Запросы проксируются в pipeline-server (:5181), без
       // iframe и без отдельного React-приложения.
       '/flowsint-api': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5181',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/flowsint-api/, ''),
       },

@@ -1,6 +1,6 @@
 // platform/src/services/shared/lib/eventBus.ts
-// [38;5;240mRedis-based Event Bus for Microservices Communication[0m
-// [38;5;240mImplements Pub/Sub pattern for inter-service communication[0m
+// Redis-based Event Bus for Microservices Communication
+// Implements Pub/Sub pattern for inter-service communication
 
 import { createClient, RedisClientType } from 'redis';
 import {
@@ -11,21 +11,21 @@ import {
 import { getConfig, isTest } from '../config';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mEvent Handler Function[0m
+ * Event Handler Function
  */
 export type EventHandler<T = unknown> = (message: EventMessage<T>) => Promise<void> | void;
 
 /**
- * [38;5;220mUnsubscribe Function[0m
+ * Unsubscribe Function
  */
 export type UnsubscribeFunction = () => Promise<void>;
 
 /**
- * [38;5;220mSubscription Options[0m
+ * Subscription Options
  */
 export interface SubscriptionOptions {
   channel?: string;
@@ -34,12 +34,12 @@ export interface SubscriptionOptions {
 }
 
 // ============================================================================
-// [38;5;220mEVENT BUS IMPLEMENTATION[0m
+// EVENT BUS IMPLEMENTATION
 // ============================================================================
 
 /**
- * [38;5;220mEvent Bus Class[0m
- * [38;5;240mHandles Redis Pub/Sub for inter-service communication[0m
+ * Event Bus Class
+ * Handles Redis Pub/Sub for inter-service communication
  */
 export class EventBus {
   private publisher: RedisClientType | null = null;
@@ -60,11 +60,11 @@ export class EventBus {
   }
 
   // ==========================================================================
-  // [38;5;220mINITIALIZATION[0m
+  // INITIALIZATION
   // ==========================================================================
 
   /**
-   * [38;5;220mInitialize the Event Bus[0m
+   * Initialize the Event Bus
    */
   async initialize(): Promise<void> {
     if (this.initialized || this.connecting) {
@@ -95,11 +95,11 @@ export class EventBus {
       
       // Handle Redis errors
       this.publisher.on('error', (err) => {
-        console.error(`[38;5;196m[EventBus:${this.serviceName}] Publisher Error:[0m`, err);
+        console.error(`[EventBus:${this.serviceName}] Publisher Error:`, err);
       });
       
       this.subscriber.on('error', (err) => {
-        console.error(`[38;5;196m[EventBus:${this.serviceName}] Subscriber Error:[0m`, err);
+        console.error(`[EventBus:${this.serviceName}] Subscriber Error:`, err);
       });
       
       // Connect clients
@@ -114,10 +114,10 @@ export class EventBus {
       });
       
       this.initialized = true;
-      console.log(`[38;5;220m[EventBus:${this.serviceName}] Connected to Redis[0m`);
+      console.log(`[EventBus:${this.serviceName}] Connected to Redis`);
       
     } catch (error) {
-      console.error(`[38;5;196m[EventBus:${this.serviceName}] Failed to initialize:[0m`, error);
+      console.error(`[EventBus:${this.serviceName}] Failed to initialize:`, error);
       this.cleanup();
       throw error;
     } finally {
@@ -126,14 +126,14 @@ export class EventBus {
   }
 
   /**
-   * [38;5;220mCheck if Event Bus is initialized[0m
+   * Check if Event Bus is initialized
    */
   isInitialized(): boolean {
     return this.initialized;
   }
 
   /**
-   * [38;5;220mCleanup resources[0m
+   * Cleanup resources
    */
   private async cleanup(): Promise<void> {
     try {
@@ -148,24 +148,24 @@ export class EventBus {
       this.handlers.clear();
       this.initialized = false;
     } catch (error) {
-      console.error(`[38;5;196m[EventBus:${this.serviceName}] Cleanup error:[0m`, error);
+      console.error(`[EventBus:${this.serviceName}] Cleanup error:`, error);
     }
   }
 
   /**
-   * [38;5;220mGraceful shutdown[0m
+   * Graceful shutdown
    */
   async shutdown(): Promise<void> {
     await this.cleanup();
-    console.log(`[38;5;220m[EventBus:${this.serviceName}] Shutdown complete[0m`);
+    console.log(`[EventBus:${this.serviceName}] Shutdown complete`);
   }
 
   // ==========================================================================
-  // [38;5;220mPUBLISHING[0m
+  // PUBLISHING
   // ==========================================================================
 
   /**
-   * [38;5;220mPublish an event[0m
+   * Publish an event
    */
   async publish<T = unknown>(
     eventType: EventType,
@@ -188,15 +188,15 @@ export class EventBus {
     
     try {
       await this.publisher?.publish(targetChannel, JSON.stringify(message));
-      console.log(`[38;5;220m[EventBus:${this.serviceName}] Published ${eventType} to ${targetChannel}[0m`);
+      console.log(`[EventBus:${this.serviceName}] Published ${eventType} to ${targetChannel}`);
     } catch (error) {
-      console.error(`[38;5;196m[EventBus:${this.serviceName}] Failed to publish ${eventType}:[0m`, error);
+      console.error(`[EventBus:${this.serviceName}] Failed to publish ${eventType}:`, error);
       throw error;
     }
   }
 
   /**
-   * [38;5;220mPublish graph-related event[0m
+   * Publish graph-related event
    */
   async publishGraphEvent(data: GraphEventData): Promise<void> {
     const eventType = this.inferEventTypeFromGraphData(data);
@@ -204,11 +204,11 @@ export class EventBus {
   }
 
   // ==========================================================================
-  // [38;5;220mSUBSCRIPTIONS[0m
+  // SUBSCRIPTIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mSubscribe to an event type[0m
+   * Subscribe to an event type
    */
   subscribe<T = unknown>(
     eventType: EventType,
@@ -219,7 +219,7 @@ export class EventBus {
   }
 
   /**
-   * [38;5;220mSubscribe to a specific channel[0m
+   * Subscribe to a specific channel
    */
   subscribeToChannel<T = unknown>(
     channel: string,
@@ -243,7 +243,7 @@ export class EventBus {
   }
 
   /**
-   * [38;5;220mSubscribe to multiple event types[0m
+   * Subscribe to multiple event types
    */
   subscribeToEvents<T = unknown>(
     eventTypes: EventType[],
@@ -253,18 +253,18 @@ export class EventBus {
   }
 
   /**
-   * [38;5;220mSubscribe to all events[0m
+   * Subscribe to all events
    */
   subscribeToAll<T = unknown>(handler: EventHandler<T>): UnsubscribeFunction {
     return this.subscribeToChannel(this.PATTERN, handler);
   }
 
   // ==========================================================================
-  // [38;5;220mMESSAGE HANDLING[0m
+  // MESSAGE HANDLING
   // ==========================================================================
 
   /**
-   * [38;5;220mHandle incoming message from Redis[0m
+   * Handle incoming message from Redis
    */
   private async handleMessage(message: string, channel: string): Promise<void> {
     try {
@@ -272,7 +272,7 @@ export class EventBus {
       
       // Validate message structure
       if (!parsedMessage.eventType || !parsedMessage.timestamp) {
-        console.warn(`[38;5;208m[EventBus:${this.serviceName}] Invalid message structure[0m`);
+        console.warn(`[EventBus:${this.serviceName}] Invalid message structure`);
         return;
       }
       
@@ -283,7 +283,7 @@ export class EventBus {
           try {
             await handler(parsedMessage);
           } catch (error) {
-            console.error(`[38;5;196m[EventBus:${this.serviceName}] Handler error for ${parsedMessage.eventType}:[0m`, error);
+            console.error(`[EventBus:${this.serviceName}] Handler error for ${parsedMessage.eventType}:`, error);
           }
         }
       }
@@ -295,22 +295,22 @@ export class EventBus {
           try {
             await handler(parsedMessage);
           } catch (error) {
-            console.error(`[38;5;196m[EventBus:${this.serviceName}] Handler error for ${parsedMessage.eventType}:[0m`, error);
+            console.error(`[EventBus:${this.serviceName}] Handler error for ${parsedMessage.eventType}:`, error);
           }
         }
       }
       
     } catch (error) {
-      console.error(`[38;5;196m[EventBus:${this.serviceName}] Failed to parse message:[0m`, error);
+      console.error(`[EventBus:${this.serviceName}] Failed to parse message:`, error);
     }
   }
 
   // ==========================================================================
-  // [38;5;220mUTILITY METHODS[0m
+  // UTILITY METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mEnsure Event Bus is initialized[0m
+   * Ensure Event Bus is initialized
    */
   private async ensureInitialized(): Promise<void> {
     if (!this.initialized) {
@@ -323,14 +323,14 @@ export class EventBus {
   }
 
   /**
-   * [38;5;220mGet channel for event type[0m
+   * Get channel for event type
    */
   private getChannelForEvent(eventType: EventType): string {
     return `${this.CHANNEL_PREFIX}${eventType}`;
   }
 
   /**
-   * [38;5;220mInfer event type from graph data[0m
+   * Infer event type from graph data
    */
   private inferEventTypeFromGraphData(data: GraphEventData): EventType {
     if (data.changes?.addedNodes?.length > 0) {
@@ -357,12 +357,12 @@ export class EventBus {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 /**
- * [38;5;220mGlobal Event Bus instance[0m
- * [38;5;240mUse this for most use cases[0m
+ * Global Event Bus instance
+ * Use this for most use cases
  */
 let globalEventBus: EventBus | null = null;
 
@@ -381,11 +381,11 @@ export function resetEventBus(): void {
 }
 
 // ============================================================================
-// [38;5;220mCONVENIENCE FUNCTIONS[0m
+// CONVENIENCE FUNCTIONS
 // ============================================================================
 
 /**
- * [38;5;220mPublish an event (convenience function)[0m
+ * Publish an event (convenience function)
  */
 export async function publishEvent<T = unknown>(
   eventType: EventType,
@@ -398,7 +398,7 @@ export async function publishEvent<T = unknown>(
 }
 
 /**
- * [38;5;220mSubscribe to an event (convenience function)[0m
+ * Subscribe to an event (convenience function)
  */
 export function subscribeToEvent<T = unknown>(
   eventType: EventType,
@@ -410,7 +410,7 @@ export function subscribeToEvent<T = unknown>(
 }
 
 /**
- * [38;5;220mPublish graph event (convenience function)[0m
+ * Publish graph event (convenience function)
  */
 export async function publishGraphEvent(
   data: GraphEventData,
@@ -422,7 +422,7 @@ export async function publishGraphEvent(
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

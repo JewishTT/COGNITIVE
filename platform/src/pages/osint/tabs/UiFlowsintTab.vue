@@ -1,34 +1,34 @@
 <template>
   <section class="view view-embed os-view">
-    <!-- [38;5;240mPremium Header with Glass Effect[0m -->
+    <!-- Premium Header with Glass Effect -->
     <header class="view-head glass-card">
       <div class="header-content">
         <h1 class="header-title">
-          <span class="header-icon neon neon-primary">[38;5;240m🎨[0m</span>
+          <span class="header-icon neon neon-primary"><UiIcon name="palette" /></span>
           OSINT Flowsint Integration
         </h1>
         <p class="header-subtitle">
-          [38;5;240mDvijok FLOWSINT[0m [38;5;240m|[0m [38;5;240mNEO4J[0m [38;5;240m|[0m [38;5;240mTDA[0m [38;5;240m|[0m [38;5;240mTHEBIGBROTHER[0m
+          Dvijok FLOWSINT | NEO4J | TDA | THEBIGBROTHER
         </p>
       </div>
       <div class="header-status">
         <span class="status-indicator online" title="Все системы работают"></span>
-        <span class="status-text">[38;5;240mАктивен[0m</span>
+        <span class="status-text">Активен</span>
       </div>
     </header>
 
-    <!-- [38;5;240mPremium Workspace Layout[0m -->
+    <!-- Premium Workspace Layout -->
     <div class="os-workspace">
-      <!-- [38;5;240mLeft Sidebar - Investigations & Sketches with Glass Effect[0m -->
+      <!-- Left Sidebar - Investigations & Sketches with Glass Effect -->
       <InvestigationSidebar 
         :active-sketch-id="activeSketchId" 
         @select="onSelect"
         class="os-workspace-left glass-card"
       />
 
-      <!-- [38;5;240mCenter - Main Canvas Area with Enhanced Controls[0m -->
+      <!-- Center - Main Canvas Area with Enhanced Controls -->
       <div class="os-ws-center">
-        <!-- [38;5;240mGraph Canvas with Enhanced Controls[0m -->
+        <!-- Graph Canvas with Enhanced Controls -->
         <div class="os-graph-container glass-card">
           <GraphCanvas
             ref="canvasRef"
@@ -39,7 +39,7 @@
             @tbb-state="onTbbState"
           />
           
-          <!-- [38;5;240mTDA Layer Overlay (Collapsible with Animation)[0m -->
+          <!-- TDA Layer Overlay (Collapsible with Animation) -->
           <transition name="fade">
             <TdaLayer
               v-if="showTdaLayer && activeSketchId && currentGraph && currentGraph.nds.length > 0"
@@ -51,14 +51,14 @@
             />
           </transition>
           
-          <!-- [38;5;240mLoading Overlay[0m -->
+          <!-- Loading Overlay -->
           <div class="graph-loading" v-if="loading">
             <div class="loading-spinner animate-spin"></div>
             <span class="loading-text">Загрузка графа...</span>
           </div>
         </div>
         
-        <!-- [38;5;240mPremium Quick Access Toolbar with Glass Effect[0m -->
+        <!-- Premium Quick Access Toolbar with Glass Effect -->
         <div v-if="activeSketchId" class="os-quick-toolbar glass-card">
           <div class="os-quick-group">
             <button 
@@ -67,7 +67,7 @@
               :class="{ 'is-active': showTdaLayer }"
               title="Переключить слой TDA"
             >
-              <span class="os-btn-icon">🧮</span>
+              <span class="os-btn-icon"><UiIcon name="calculator" /></span>
               <span class="os-btn-label">TDA</span>
             </button>
             <button 
@@ -81,7 +81,7 @@
                   <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="60"/>
                 </svg>
               </span>
-              <span class="os-btn-icon" v-else>🔄</span>
+              <span class="os-btn-icon" v-else><UiIcon name="refresh" /></span>
               <span class="os-btn-label">Обновить</span>
             </button>
             <button 
@@ -89,7 +89,7 @@
               @click="fitView"
               title="Подогнать вид"
             >
-              <span class="os-btn-icon">🎯</span>
+              <span class="os-btn-icon"><UiIcon name="target" /></span>
               <span class="os-btn-label">Вид</span>
             </button>
             <button 
@@ -97,30 +97,30 @@
               @click="toggleFullscreen"
               title="Полноэкранный режим"
             >
-              <span class="os-btn-icon">⛶</span>
+              <span class="os-btn-icon"><UiIcon name="expand" /></span>
               <span class="os-btn-label">FS</span>
             </button>
           </div>
           <div class="os-quick-stats">
             <span class="os-stat-badge glass">
-              <span class="stat-icon">🔵</span>
+              <span class="stat-icon"><UiIcon name="dotBlue" /></span>
               {{ currentGraph ? currentGraph.nds.length : 0 }} Nodes
             </span>
             <span class="os-stat-badge glass">
-              <span class="stat-icon">🔴</span>
+              <span class="stat-icon"><UiIcon name="dotRed" /></span>
               {{ currentGraph ? currentGraph.rls.length : 0 }} Edges
             </span>
             <span class="os-stat-badge glass os-stat-selected" v-if="selectedNode">
-              <span class="stat-icon">✨</span>
+              <span class="stat-icon"><UiIcon name="sparkle" /></span>
               Selected: 1
             </span>
           </div>
         </div>
       </div>
 
-      <!-- [38;5;240mRight Sidebar - Tools & Panels with Glass Effect[0m -->
+      <!-- Right Sidebar - Tools & Panels with Glass Effect -->
       <div class="os-ws-right">
-        <!-- [38;5;240mNode Inspector (Enhanced with Glass)[0m -->
+        <!-- Node Inspector (Enhanced with Glass) -->
         <transition name="slide-right">
           <NodeInspector
             v-if="selectedNode"
@@ -131,14 +131,14 @@
           />
         </transition>
         
-        <!-- [38;5;240mType Palette with Custom Types Support and Glass Effect[0m -->
+        <!-- Type Palette with Custom Types Support and Glass Effect -->
         <TypePalette 
           :sketch-id="activeSketchId" 
           @added="onAdded"
           class="os-panel-enhanced glass-card"
         />
         
-        <!-- [38;5;240mEnricher Catalog with Enhanced UI and Glass Effect[0m -->
+        <!-- Enricher Catalog with Enhanced UI and Glass Effect -->
         <EnricherCatalog
           :sketch-id="activeSketchId"
           :node-ids="selectedNodeIds"
@@ -147,17 +147,17 @@
           class="os-panel-enhanced glass-card"
         />
         
-        <!-- [38;5;240mEvent Log with Real-time Updates and Glass Effect[0m -->
+        <!-- Event Log with Real-time Updates and Glass Effect -->
         <EventLog 
           :sketch-id="activeSketchId" 
           class="os-panel-enhanced glass-card"
         />
         
-        <!-- [38;5;240mPremium Custom Analysis Tools Section with Glass Effect[0m -->
+        <!-- Premium Custom Analysis Tools Section with Glass Effect -->
         <div class="os-panel-enhanced glass-card os-custom-tools">
           <div class="os-palette-head">
             <strong class="palette-title">
-              <span class="title-icon">🔧</span>
+              <span class="title-icon"><UiIcon name="wrench" /></span>
               Инструменты Анализа
             </strong>
             <span class="palette-hint">Premium</span>
@@ -169,7 +169,7 @@
               :disabled="!activeSketchId || !currentGraph || currentGraph.nds.length === 0 || loading"
               title="Анализ центральности"
             >
-              <span class="os-tool-icon">⭐</span>
+              <span class="os-tool-icon"><UiIcon name="star" /></span>
               <span class="os-tool-label">Центральность</span>
             </button>
             <button 
@@ -178,7 +178,7 @@
               :disabled="!activeSketchId || !currentGraph || currentGraph.nds.length === 0 || loading"
               title="Обнаружение сообществ"
             >
-              <span class="os-tool-icon">👥</span>
+              <span class="os-tool-icon"><UiIcon name="users" /></span>
               <span class="os-tool-label">Сообщества</span>
             </button>
             <button 
@@ -187,7 +187,7 @@
               :disabled="!activeSketchId || !currentGraph || currentGraph.nds.length === 0 || loading"
               title="Анализ путей"
             >
-              <span class="os-tool-icon">🛣️</span>
+              <span class="os-tool-icon"><UiIcon name="road" /></span>
               <span class="os-tool-label">Пути</span>
             </button>
             <button 
@@ -196,7 +196,7 @@
               :disabled="!activeSketchId || !currentGraph || currentGraph.nds.length === 0 || loading"
               title="Кластеризация"
             >
-              <span class="os-tool-icon">🎯</span>
+              <span class="os-tool-icon"><UiIcon name="target" /></span>
               <span class="os-tool-label">Кластеры</span>
             </button>
             <button 
@@ -205,7 +205,7 @@
               :disabled="!activeSketchId || !currentGraph || loading"
               title="Экспорт графа"
             >
-              <span class="os-tool-icon">📤</span>
+              <span class="os-tool-icon"><UiIcon name="upload" /></span>
               <span class="os-tool-label">Экспорт</span>
             </button>
             <button 
@@ -214,7 +214,7 @@
               :disabled="loading"
               title="Импорт графа"
             >
-              <span class="os-tool-icon">📥</span>
+              <span class="os-tool-icon"><UiIcon name="download" /></span>
               <span class="os-tool-label">Импорт</span>
             </button>
             <button 
@@ -223,7 +223,7 @@
               :disabled="!activeSketchId || !currentGraph || loading"
               title="Очистить граф"
             >
-              <span class="os-tool-icon">🗑️</span>
+              <span class="os-tool-icon"><UiIcon name="trash" /></span>
               <span class="os-tool-label">Очистить</span>
             </button>
             <button 
@@ -232,7 +232,7 @@
               :disabled="!activeSketchId || !currentGraph || loading"
               title="Сохранить граф"
             >
-              <span class="os-tool-icon">💾</span>
+              <span class="os-tool-icon"><UiIcon name="save" /></span>
               <span class="os-tool-label">Сохранить</span>
             </button>
           </div>
@@ -244,12 +244,12 @@
           </div>
         </div>
         
-        <!-- [38;5;240mGraph Statistics Panel[0m -->
+        <!-- Graph Statistics Panel -->
         <transition name="slide-up">
           <div class="os-panel-enhanced glass-card os-stats-panel" v-if="currentGraph">
             <div class="stats-header">
               <h4 class="stats-title">
-                <span class="stats-icon">📊</span>
+                <span class="stats-icon"><UiIcon name="chartBar" /></span>
                 Статистика Графа
               </h4>
             </div>

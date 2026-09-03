@@ -1,6 +1,6 @@
 // platform/src/services/shared/lib/neo4j/index.ts
-// [38;5;240mNeo4j Database Service with Transaction Support[0m
-// [38;5;240mProvides type-safe Neo4j operations for OSINT data[0m
+// Neo4j Database Service with Transaction Support
+// Provides type-safe Neo4j operations for OSINT data
 
 import {
   StandardGraphNode,
@@ -11,11 +11,11 @@ import {
 import { getConfig } from '../../config';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mNeo4j Configuration[0m
+ * Neo4j Configuration
  */
 export interface Neo4jConfig {
   uri: string;
@@ -28,21 +28,21 @@ export interface Neo4jConfig {
 }
 
 /**
- * [38;5;220mNeo4j Node Properties[0m
+ * Neo4j Node Properties
  */
 export interface Neo4jNodeProperties {
   [key: string]: unknown;
 }
 
 /**
- * [38;5;220mNeo4j Relationship Properties[0m
+ * Neo4j Relationship Properties
  */
 export interface Neo4jRelationshipProperties {
   [key: string]: unknown;
 }
 
 /**
- * [38;5;220mNeo4j Node with Internal ID[0m
+ * Neo4j Node with Internal ID
  */
 export interface Neo4jNode {
   id: number;
@@ -52,7 +52,7 @@ export interface Neo4jNode {
 }
 
 /**
- * [38;5;220mNeo4j Relationship with Internal ID[0m
+ * Neo4j Relationship with Internal ID
  */
 export interface Neo4jRelationship {
   id: number;
@@ -64,7 +64,7 @@ export interface Neo4jRelationship {
 }
 
 /**
- * [38;5;220mNeo4j Query Result[0m
+ * Neo4j Query Result
  */
 export interface Neo4jResult {
   records: Neo4jRecord[];
@@ -72,7 +72,7 @@ export interface Neo4jResult {
 }
 
 /**
- * [38;5;220mNeo4j Record[0m
+ * Neo4j Record
  */
 export interface Neo4jRecord {
   keys: string[];
@@ -82,7 +82,7 @@ export interface Neo4jRecord {
 }
 
 /**
- * [38;5;220mNeo4j Result Summary[0m
+ * Neo4j Result Summary
  */
 export interface Neo4jResultSummary {
   query: string;
@@ -109,7 +109,7 @@ export interface Neo4jResultSummary {
 }
 
 /**
- * [38;5;220mNeo4j Notification[0m
+ * Neo4j Notification
  */
 export interface Neo4jNotification {
   code: string;
@@ -120,7 +120,7 @@ export interface Neo4jNotification {
 }
 
 /**
- * [38;5;220mTransaction Configuration[0m
+ * Transaction Configuration
  */
 export interface TransactionConfig {
   timeout?: number; // in milliseconds
@@ -128,7 +128,7 @@ export interface TransactionConfig {
 }
 
 /**
- * [38;5;220mTransaction Result[0m
+ * Transaction Result
  */
 export interface TransactionResult {
   success: boolean;
@@ -138,11 +138,11 @@ export interface TransactionResult {
 }
 
 // ============================================================================
-// [38;5;220mNEO4J SERVICE[0m
+// NEO4J SERVICE
 // ============================================================================
 
 /**
- * [38;5;220mNeo4j Database Service[0m
+ * Neo4j Database Service
  */
 export class Neo4jService {
   private driver: any = null;
@@ -165,11 +165,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mCONNECTION MANAGEMENT[0m
+  // CONNECTION MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mConnect to Neo4j database[0m
+   * Connect to Neo4j database
    */
   async connect(): Promise<void> {
     if (this.connected) return;
@@ -192,15 +192,15 @@ export class Neo4jService {
       await session.close();
       
       this.connected = true;
-      console.log(`[38;5;220m[Neo4jService] Connected to ${this.config.uri}[0m`);
+      console.log(`[Neo4jService] Connected to ${this.config.uri}`);
     } catch (error) {
-      console.error(`[38;5;196m[Neo4jService] Connection failed:[0m`, error);
+      console.error(`[Neo4jService] Connection failed:`, error);
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDisconnect from Neo4j database[0m
+   * Disconnect from Neo4j database
    */
   async disconnect(): Promise<void> {
     if (this.driver) {
@@ -208,22 +208,22 @@ export class Neo4jService {
         await this.driver.close();
         this.driver = null;
         this.connected = false;
-        console.log(`[38;5;220m[Neo4jService] Disconnected[0m`);
+        console.log(`[Neo4jService] Disconnected`);
       } catch (error) {
-        console.error(`[38;5;196m[Neo4jService] Disconnection failed:[0m`, error);
+        console.error(`[Neo4jService] Disconnection failed:`, error);
       }
     }
   }
 
   /**
-   * [38;5;220mCheck if connected to Neo4j[0m
+   * Check if connected to Neo4j
    */
   isConnected(): boolean {
     return this.connected;
   }
 
   /**
-   * [38;5;220mVerify connection to Neo4j[0m
+   * Verify connection to Neo4j
    */
   async verifyConnection(): Promise<boolean> {
     try {
@@ -242,11 +242,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mSESSION MANAGEMENT[0m
+  // SESSION MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a new session[0m
+   * Create a new session
    */
   createSession(config?: { database?: string; defaultAccessMode?: string }): any {
     if (!this.driver) {
@@ -260,11 +260,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mQUERY EXECUTION[0m
+  // QUERY EXECUTION
   // ==========================================================================
 
   /**
-   * [38;5;220mExecute a Cypher query[0m
+   * Execute a Cypher query
    */
   async executeQuery(
     query: string,
@@ -290,7 +290,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mExecute a read query[0m
+   * Execute a read query
    */
   async readQuery(
     query: string,
@@ -301,7 +301,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mExecute a write query[0m
+   * Execute a write query
    */
   async writeQuery(
     query: string,
@@ -312,11 +312,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mTRANSACTION MANAGEMENT[0m
+  // TRANSACTION MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mExecute queries in a transaction[0m
+   * Execute queries in a transaction
    */
   async executeInTransaction<T>(
     queries: Array<{ query: string; params?: Record<string, unknown> }>,
@@ -360,7 +360,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mBegin a transaction[0m
+   * Begin a transaction
    */
   async beginTransaction(config?: TransactionConfig): Promise<{
     transactionId: string;
@@ -381,7 +381,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mCommit a transaction[0m
+   * Commit a transaction
    */
   async commitTransaction(
     transaction: any,
@@ -397,7 +397,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mRollback a transaction[0m
+   * Rollback a transaction
    */
   async rollbackTransaction(
     transaction: any,
@@ -413,11 +413,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mGRAPH OPERATIONS[0m
+  // GRAPH OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a graph (as a set of nodes with a label)[0m
+   * Create a graph (as a set of nodes with a label)
    */
   async createGraph(
     graphId: string,
@@ -439,7 +439,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mDelete a graph and all its nodes and relationships[0m
+   * Delete a graph and all its nodes and relationships
    */
   async deleteGraph(graphId: string): Promise<Neo4jResult> {
     const query = `
@@ -452,7 +452,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mAdd a node to a graph[0m
+   * Add a node to a graph
    */
   async addNode(
     graphId: string,
@@ -474,7 +474,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mAdd multiple nodes to a graph in a transaction[0m
+   * Add multiple nodes to a graph in a transaction
    */
   async addNodes(
     graphId: string,
@@ -496,7 +496,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet a node by ID[0m
+   * Get a node by ID
    */
   async getNode(graphId: string, nodeId: string): Promise<Neo4jResult> {
     const query = `
@@ -508,7 +508,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet all nodes in a graph[0m
+   * Get all nodes in a graph
    */
   async getNodes(graphId: string): Promise<Neo4jResult> {
     const query = `
@@ -520,7 +520,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mUpdate a node in a graph[0m
+   * Update a node in a graph
    */
   async updateNode(
     graphId: string,
@@ -543,7 +543,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mDelete a node from a graph[0m
+   * Delete a node from a graph
    */
   async deleteNode(graphId: string, nodeId: string): Promise<Neo4jResult> {
     const query = `
@@ -555,7 +555,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mAdd an edge to a graph[0m
+   * Add an edge to a graph
    */
   async addEdge(
     graphId: string,
@@ -577,7 +577,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mAdd multiple edges to a graph in a transaction[0m
+   * Add multiple edges to a graph in a transaction
    */
   async addEdges(
     graphId: string,
@@ -602,7 +602,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet an edge by ID[0m
+   * Get an edge by ID
    */
   async getEdge(graphId: string, edgeId: string): Promise<Neo4jResult> {
     const query = `
@@ -614,7 +614,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet all edges in a graph[0m
+   * Get all edges in a graph
    */
   async getEdges(graphId: string): Promise<Neo4jResult> {
     const query = `
@@ -626,7 +626,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mUpdate an edge in a graph[0m
+   * Update an edge in a graph
    */
   async updateEdge(
     graphId: string,
@@ -650,7 +650,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mDelete an edge from a graph[0m
+   * Delete an edge from a graph
    */
   async deleteEdge(graphId: string, edgeId: string): Promise<Neo4jResult> {
     const query = `
@@ -663,11 +663,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mGRAPH QUERIES[0m
+  // GRAPH QUERIES
   // ==========================================================================
 
   /**
-   * [38;5;220mGet the entire graph (nodes and edges)[0m
+   * Get the entire graph (nodes and edges)
    */
   async getFullGraph(graphId: string): Promise<StandardGraphData> {
     const nodesResult = await this.getNodes(graphId);
@@ -696,7 +696,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mQuery nodes by properties[0m
+   * Query nodes by properties
    */
   async queryNodes(
     graphId: string,
@@ -722,7 +722,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mQuery edges by properties[0m
+   * Query edges by properties
    */
   async queryEdges(
     graphId: string,
@@ -746,11 +746,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mVERSIONING AND BACKUP[0m
+  // VERSIONING AND BACKUP
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a version of the graph[0m
+   * Create a version of the graph
    */
   async createVersion(
     graphId: string,
@@ -775,7 +775,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet all versions of a graph[0m
+   * Get all versions of a graph
    */
   async getVersions(graphId: string): Promise<GraphVersion[]> {
     const query = `
@@ -792,7 +792,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mRestore a graph to a specific version[0m
+   * Restore a graph to a specific version
    */
   async restoreVersion(graphId: string, versionId: string): Promise<Neo4jResult> {
     const query = `
@@ -811,11 +811,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mINDEX MANAGEMENT[0m
+  // INDEX MANAGEMENT
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate indexes for better query performance[0m
+   * Create indexes for better query performance
    */
   async createIndexes(): Promise<Neo4jResult> {
     const queries = [
@@ -838,11 +838,11 @@ export class Neo4jService {
   }
 
   // ==========================================================================
-  // [38;5;220mUTILITY METHODS[0m
+  // UTILITY METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mEnsure connected to Neo4j[0m
+   * Ensure connected to Neo4j
    */
   private async ensureConnected(): Promise<void> {
     if (!this.connected) {
@@ -851,7 +851,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet Neo4j labels from graph node[0m
+   * Get Neo4j labels from graph node
    */
   private getNeo4jLabels(node: StandardGraphNode): string {
     const labels = [];
@@ -878,7 +878,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet Neo4j properties from graph node[0m
+   * Get Neo4j properties from graph node
    */
   private getNeo4jProperties(node: StandardGraphNode): Neo4jNodeProperties {
     const properties: Neo4jNodeProperties = {
@@ -924,7 +924,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mGet Neo4j relationship properties from graph edge[0m
+   * Get Neo4j relationship properties from graph edge
    */
   private getNeo4jRelationshipProperties(edge: StandardGraphEdge): Neo4jRelationshipProperties {
     const properties: Neo4jRelationshipProperties = {
@@ -952,7 +952,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mConvert Neo4j node to graph node[0m
+   * Convert Neo4j node to graph node
    */
   private convertNeo4jNodeToGraphNode(node: Neo4jNode): StandardGraphNode {
     const properties = node.properties as Record<string, unknown>;
@@ -984,7 +984,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mConvert Neo4j relationship to graph edge[0m
+   * Convert Neo4j relationship to graph edge
    */
   private convertNeo4jRelationshipToGraphEdge(relationship: Neo4jRelationship): StandardGraphEdge {
     const properties = relationship.properties as Record<string, unknown>;
@@ -1011,7 +1011,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mExtract custom properties with prefix[0m
+   * Extract custom properties with prefix
    */
   private extractCustomProperties(
     properties: Record<string, unknown>,
@@ -1030,7 +1030,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mBuild SET clause for Cypher query[0m
+   * Build SET clause for Cypher query
    */
   private buildSetClause(updates: Record<string, unknown>): string {
     const setParts = [];
@@ -1053,7 +1053,7 @@ export class Neo4jService {
   }
 
   /**
-   * [38;5;220mBuild WHERE clause for Cypher query[0m
+   * Build WHERE clause for Cypher query
    */
   private buildWhereClause(params: Record<string, unknown>): string {
     const conditions = [];
@@ -1079,7 +1079,7 @@ export class Neo4jService {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 let neo4jService: Neo4jService | null = null;
@@ -1099,7 +1099,7 @@ export function resetNeo4jService(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

@@ -6,10 +6,13 @@ export const investigationApi = {
   list(): Promise<Investigation[]> {
     return http('/investigations')
   },
-  create(name: string, description: string): Promise<Investigation> {
+  create(name: string, sketchId?: string): Promise<Investigation> {
     return http('/investigations', {
       method: 'POST',
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, sketch_id: sketchId }),
     })
+  },
+  get(investigationId: string): Promise<Investigation> {
+    return http(`/investigations/${investigationId}`)
   },
 }

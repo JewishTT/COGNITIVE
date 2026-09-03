@@ -3,7 +3,7 @@
     <!-- Header with Controls -->
     <div class="os3d-header">
       <div class="os3d-title">
-        <span class="os3d-icon">[38;5;208m[0m</span>
+        <span class="os3d-icon"></span>
         <span>3D Simplicial Complex</span>
       </div>
       <div class="os3d-controls">
@@ -12,7 +12,7 @@
           @click="resetCamera"
           title="Reset Camera View"
         >
-          [38;5;220m[0m
+          
         </button>
         <button 
           class="os3d-btn" 
@@ -20,7 +20,7 @@
           :class="{ 'is-active': autoRotate }"
           title="Toggle Auto Rotation"
         >
-          [38;5;220m[0m
+          
         </button>
         <button 
           class="os3d-btn" 
@@ -28,7 +28,7 @@
           :class="{ 'is-active': showLabels }"
           title="Toggle Node Labels"
         >
-          [38;5;220mA[0m
+          A
         </button>
       </div>
     </div>
@@ -54,13 +54,13 @@
 
     <!-- Status -->
     <div v-if="error" class="os3d-error">
-      <span>[38;5;196mError:[0m {{ error }}</span>
-      <button class="os3d-btn" @click="error = ''">[38;5;196mX[0m</button>
+      <span>Error: {{ error }}</span>
+      <button class="os3d-btn" @click="error = ''">X</button>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="os3d-loading">
-      <span>[38;5;220mBuilding complex...[0m</span>
+      <span>Building complex...</span>
     </div>
 
     <!-- Stats Overlay -->
@@ -81,7 +81,7 @@
 
     <!-- Help Tip -->
     <p class="os3d-tip">
-      [38;5;240mLMB + Drag: Rotate [38;5;240m|[0m [38;5;240mRMB + Drag: Pan [38;5;240m|[0m [38;5;240mScroll: Zoom[0m
+      LMB + Drag: Rotate | RMB + Drag: Pan | Scroll: Zoom
     </p>
   </div>
 </template>

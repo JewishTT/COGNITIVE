@@ -1,6 +1,6 @@
 // platform/src/services/tda/api/index.ts
-// [38;5;240mTDA Service API Client[0m]
-// [38;5;240mREST API client for Topological Data Analysis operations[0m
+// TDA Service API Client
+// REST API client for Topological Data Analysis operations
 
 import {
   TdaConfiguration,
@@ -15,14 +15,13 @@ import {
 } from '../../shared/types';
 import { getConfig } from '../../shared/config';
 import { getCacheManager } from '../../shared/lib/cache';
-import { getFallbackManager } from '../../shared/lib/fallback';
 
 // ============================================================================
-// [38;5;220mTYPES[0m]
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mTDA API Configuration[0m]
+ * TDA API Configuration
  */
 export interface TdaApiConfig {
   baseUrl: string;
@@ -32,7 +31,7 @@ export interface TdaApiConfig {
 }
 
 /**
- * [38;5;220mCreate TDA Analysis Request[0m]
+ * Create TDA Analysis Request
  */
 export interface CreateTdaAnalysisRequest {
   graphId: string;
@@ -40,7 +39,7 @@ export interface CreateTdaAnalysisRequest {
 }
 
 /**
- * [38;5;220mCreate TDA Analysis Response[0m]
+ * Create TDA Analysis Response
  */
 export interface CreateTdaAnalysisResponse {
   analysisId: string;
@@ -49,16 +48,15 @@ export interface CreateTdaAnalysisResponse {
 }
 
 /**
- * [38;5;220mTDA API Client Options[0m]
+ * TDA API Client Options
  */
 export interface TdaApiClientOptions {
   config?: TdaApiConfig;
   useCache?: boolean;
-  useFallback?: boolean;
 }
 
 /**
- * [38;5;220mTDA Analysis Options[0m]
+ * TDA Analysis Options
  */
 export interface TdaAnalysisOptions {
   dimension?: number;
@@ -69,16 +67,15 @@ export interface TdaAnalysisOptions {
 }
 
 // ============================================================================
-// [38;5;220mTDA API CLIENT[0m]
+// TDA API CLIENT
 // ============================================================================
 
 /**
- * [38;5;220mTDA API Client[0m]
+ * TDA API Client
  */
 export class TdaApiClient {
   private config: TdaApiConfig;
   private cacheManager = getCacheManager();
-  private fallbackManager = getFallbackManager();
   private options: TdaApiClientOptions;
 
   constructor(options: TdaApiClientOptions = {}) {
@@ -93,17 +90,16 @@ export class TdaApiClient {
     
     this.options = {
       useCache: options.useCache !== false,
-      useFallback: options.useFallback !== false,
       ...options,
     };
   }
 
   // ==========================================================================
-  // [38;5;220mANALYSIS OPERATIONS[0m]
+  // ANALYSIS OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mCreate a new TDA analysis for a graph[0m]
+   * Create a new TDA analysis for a graph
    */
   async createAnalysis(
     graphId: string,
@@ -125,28 +121,12 @@ export class TdaApiClient {
 
       return response;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          `analysis_${Date.now()}`,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              analysisId: `mock_analysis_${Date.now()}`,
-              status: 'pending',
-              message: 'Fallback: TDA analysis created in offline mode',
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet TDA analysis by ID[0m]
+   * Get TDA analysis by ID
    */
   async getAnalysis(
     graphId: string,
@@ -180,24 +160,12 @@ export class TdaApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockTdaResult(graphId, analysisId),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet all TDA analyses for a graph[0m]
+   * Get all TDA analyses for a graph
    */
   async getAllAnalyses(graphId: string): Promise<TdaResult[]> {
     const cacheKey = this.cacheManager.generateKey(
@@ -231,22 +199,12 @@ export class TdaApiClient {
 
       return results;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withFlowsintFallback(
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: [],
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mCancel a TDA analysis[0m]
+   * Cancel a TDA analysis
    */
   async cancelAnalysis(
     graphId: string,
@@ -265,28 +223,12 @@ export class TdaApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            mockData: {
-              id: analysisId,
-              graphId,
-              status: 'cancelled',
-              createdAt: new Date().toISOString(),
-            } as TdaResult,
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mDelete a TDA analysis[0m]
+   * Delete a TDA analysis
    */
   async deleteAnalysis(
     graphId: string,
@@ -301,21 +243,16 @@ export class TdaApiClient {
         await this.cacheManager.getDefaultBackend().delete(cacheKey);
       }
     } catch (error) {
-      if (this.options.useFallback) {
-        // Just log the error in fallback mode
-        console.warn(`[38;5;208m[TdaApiClient] Failed to delete analysis ${analysisId}:[0m`, error);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mCOMPONENT OPERATIONS[0m]
+  // COMPONENT OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet connected components from a TDA analysis[0m]
+   * Get connected components from a TDA analysis
    */
   async getComponents(
     graphId: string,
@@ -349,28 +286,16 @@ export class TdaApiClient {
 
       return components;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockComponents(graphId),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mCYCLE OPERATIONS[0m]
+  // CYCLE OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet cycles from a TDA analysis[0m]
+   * Get cycles from a TDA analysis
    */
   async getCycles(
     graphId: string,
@@ -404,28 +329,16 @@ export class TdaApiClient {
 
       return cycles;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: [],
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mPERSISTENCE OPERATIONS[0m]
+  // PERSISTENCE OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet persistence diagram from a TDA analysis[0m]
+   * Get persistence diagram from a TDA analysis
    */
   async getPersistenceDiagram(
     graphId: string,
@@ -459,24 +372,12 @@ export class TdaApiClient {
 
       return diagram;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockPersistenceDiagram(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet barcode from a TDA analysis[0m]
+   * Get barcode from a TDA analysis
    */
   async getBarcode(
     graphId: string,
@@ -510,24 +411,12 @@ export class TdaApiClient {
 
       return barcode;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockBarcode(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   /**
-   * [38;5;220mGet Betti numbers from a TDA analysis[0m]
+   * Get Betti numbers from a TDA analysis
    */
   async getBettiNumbers(
     graphId: string,
@@ -561,28 +450,16 @@ export class TdaApiClient {
 
       return betti;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockBettiNumbers(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mCRITICAL POINTS OPERATIONS[0m]
+  // CRITICAL POINTS OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet critical points from a TDA analysis[0m]
+   * Get critical points from a TDA analysis
    */
   async getCriticalPoints(
     graphId: string,
@@ -616,31 +493,16 @@ export class TdaApiClient {
 
       return result;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: {
-              points: [],
-              threshold: 0.5,
-            },
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mCENTRALITY OPERATIONS[0m]
+  // CENTRALITY OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet centrality metrics from a TDA analysis[0m]
+   * Get centrality metrics from a TDA analysis
    */
   async getCentrality(
     graphId: string,
@@ -674,28 +536,16 @@ export class TdaApiClient {
 
       return centrality;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockCentrality(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mCOMMUNITY OPERATIONS[0m]
+  // COMMUNITY OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet communities from a TDA analysis[0m]
+   * Get communities from a TDA analysis
    */
   async getCommunities(
     graphId: string,
@@ -729,28 +579,16 @@ export class TdaApiClient {
 
       return communities;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMockCommunities(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220m3D VISUALIZATION OPERATIONS[0m]
+  // 3D VISUALIZATION OPERATIONS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet 3D visualization data for a TDA analysis[0m]
+   * Get 3D visualization data for a TDA analysis
    */
   async get3DVisualization(
     graphId: string,
@@ -805,28 +643,16 @@ export class TdaApiClient {
 
       return visualization;
     } catch (error) {
-      if (this.options.useFallback) {
-        const result = await this.fallbackManager.withTdaFallback(
-          graphId,
-          analysisId,
-          () => Promise.reject(error),
-          {
-            cacheKey,
-            mockData: this.generateMock3DVisualization(),
-          }
-        );
-        return result.data;
-      }
       throw error;
     }
   }
 
   // ==========================================================================
-  // [38;5;220mUTILITY METHODS[0m]
+  // UTILITY METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mGet default TDA configuration[0m]
+   * Get default TDA configuration
    */
   private getDefaultConfiguration(): TdaConfiguration {
     return {
@@ -842,173 +668,12 @@ export class TdaApiClient {
     };
   }
 
-  /**
-   * [38;5;220mGenerate mock TDA result[0m]
-   */
-  private generateMockTdaResult(graphId: string, analysisId: string): TdaResult {
-    return {
-      id: analysisId,
-      graphId,
-      status: 'completed',
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      configuration: this.getDefaultConfiguration(),
-      bettiNumbers: this.generateMockBettiNumbers(),
-      persistenceDiagram: this.generateMockPersistenceDiagram(),
-      barcode: this.generateMockBarcode(),
-      components: this.generateMockComponents(graphId),
-      cycles: [],
-      criticalPoints: [],
-      centrality: this.generateMockCentrality(),
-      communities: this.generateMockCommunities(),
-    };
-  }
-
-  /**
-   * [38;5;220mGenerate mock components[0m]
-   */
-  private generateMockComponents(graphId: string): Simplex[] {
-    return [
-      {
-        id: `component_1`,
-        dimension: 0,
-        nodes: [`node_1_${graphId}`, `node_2_${graphId}`, `node_3_${graphId}`],
-        birth: 0,
-        death: Infinity,
-      },
-      {
-        id: `component_2`,
-        dimension: 0,
-        nodes: [`node_4_${graphId}`, `node_5_${graphId}`],
-        birth: 0,
-        death: Infinity,
-      },
-    ];
-  }
-
-  /**
-   * [38;5;220mGenerate mock persistence diagram[0m]
-   */
-  private generateMockPersistenceDiagram(): PersistenceInterval[] {
-    return [
-      { birth: 0, death: 10, dimension: 0 },
-      { birth: 5, death: 15, dimension: 0 },
-      { birth: 0, death: 20, dimension: 1 },
-      { birth: 10, death: Infinity, dimension: 0 },
-    ];
-  }
-
-  /**
-   * [38;5;220mGenerate mock barcode[0m]
-   */
-  private generateMockBarcode(): Barcode {
-    return {
-      intervals: [
-        { start: 0, end: 10, dimension: 0 },
-        { start: 5, end: 15, dimension: 0 },
-        { start: 0, end: 20, dimension: 1 },
-        { start: 10, end: 100, dimension: 0 },
-      ],
-    };
-  }
-
-  /**
-   * [38;5;220mGenerate mock Betti numbers[0m]
-   */
-  private generateMockBettiNumbers(): BettiNumbers {
-    return {
-      0: 3,  // Connected components
-      1: 1,  // Holes
-      2: 0,  // Voids
-    };
-  }
-
-  /**
-   * [38;5;220mGenerate mock centrality metrics[0m]
-   */
-  private generateMockCentrality(): CentralityMetrics {
-    return {
-      degree: {
-        `node_1`: 0.8,
-        `node_2`: 0.6,
-        `node_3`: 0.4,
-        `node_4`: 0.2,
-        `node_5`: 0.1,
-      },
-      betweenness: {
-        `node_1`: 0.5,
-        `node_2`: 0.3,
-        `node_3`: 0.2,
-        `node_4`: 0.1,
-        `node_5`: 0.05,
-      },
-      closeness: {
-        `node_1`: 0.7,
-        `node_2`: 0.6,
-        `node_3`: 0.5,
-        `node_4`: 0.4,
-        `node_5`: 0.3,
-      },
-      eigenvector: {
-        `node_1`: 0.4,
-        `node_2`: 0.3,
-        `node_3`: 0.2,
-        `node_4`: 0.1,
-        `node_5`: 0.05,
-      },
-    };
-  }
-
-  /**
-   * [38;5;220mGenerate mock communities[0m]
-   */
-  private generateMockCommunities(): Community[] {
-    return [
-      {
-        id: 'community_1',
-        nodes: ['node_1', 'node_2', 'node_3'],
-        size: 3,
-        modularity: 0.8,
-      },
-      {
-        id: 'community_2',
-        nodes: ['node_4', 'node_5'],
-        size: 2,
-        modularity: 0.6,
-      },
-    ];
-  }
-
-  /**
-   * [38;5;220mGenerate mock 3D visualization[0m]
-   */
-  private generateMock3DVisualization(): {
-    nodes: Array<{ id: string; x: number; y: number; z: number; color: string; size: number }>;
-    edges: Array<{ source: string; target: string; color: string; width: number }>;
-  } {
-    return {
-      nodes: [
-        { id: 'node_1', x: 0, y: 0, z: 0, color: '#ff0000', size: 10 },
-        { id: 'node_2', x: 10, y: 0, z: 0, color: '#00ff00', size: 8 },
-        { id: 'node_3', x: 5, y: 10, z: 0, color: '#0000ff', size: 6 },
-        { id: 'node_4', x: -10, y: 0, z: 0, color: '#ffff00', size: 8 },
-        { id: 'node_5', x: 0, y: -10, z: 0, color: '#ff00ff', size: 6 },
-      ],
-      edges: [
-        { source: 'node_1', target: 'node_2', color: '#888888', width: 2 },
-        { source: 'node_1', target: 'node_3', color: '#888888', width: 2 },
-        { source: 'node_2', target: 'node_3', color: '#888888', width: 2 },
-        { source: 'node_4', target: 'node_5', color: '#888888', width: 2 },
-      ],
-    };
-  }
-
   // ==========================================================================
-  // [38;5;220mHTTP METHODS[0m]
+  // HTTP METHODS
   // ==========================================================================
 
   /**
-   * [38;5;220mGeneric GET request[0m]
+   * Generic GET request
    */
   private async get<T>(path: string): Promise<T> {
     const url = `${this.config.baseUrl}${path}`;
@@ -1029,7 +694,7 @@ export class TdaApiClient {
   }
 
   /**
-   * [38;5;220mGeneric POST request[0m]
+   * Generic POST request
    */
   private async post<TRequest, TResponse>(
     path: string,
@@ -1054,7 +719,7 @@ export class TdaApiClient {
   }
 
   /**
-   * [38;5;220mGeneric DELETE request[0m]
+   * Generic DELETE request
    */
   private async delete(path: string): Promise<void> {
     const url = `${this.config.baseUrl}${path}`;
@@ -1073,7 +738,7 @@ export class TdaApiClient {
   }
 
   /**
-   * [38;5;220mGet request headers[0m]
+   * Get request headers
    */
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
@@ -1089,7 +754,7 @@ export class TdaApiClient {
   }
 
   /**
-   * [38;5;220mParse error response[0m]
+   * Parse error response
    */
   private async parseError(response: Response): Promise<{ message: string; code?: string }> {
     try {
@@ -1104,7 +769,7 @@ export class TdaApiClient {
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m]
+// SINGLETON INSTANCE
 // ============================================================================
 
 let tdaApiClient: TdaApiClient | null = null;
@@ -1121,7 +786,7 @@ export function resetTdaApiClient(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m]
+// EXPORTS
 // ============================================================================
 
 export {

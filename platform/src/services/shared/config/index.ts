@@ -1,10 +1,10 @@
 // platform/src/services/shared/config/index.ts
-// [38;5;240mShared Configuration for OSINT Microservices Architecture[0m
+// Shared Configuration for OSINT Microservices Architecture
 
 import { CacheStrategy, CacheConfig } from '../types';
 
 // ============================================================================
-// [38;5;220mENVIRONMENT CONFIGURATION[0m
+// ENVIRONMENT CONFIGURATION
 // ============================================================================
 
 export interface EnvironmentConfig {
@@ -59,7 +59,7 @@ export interface EnvironmentConfig {
 }
 
 // ============================================================================
-// [38;5;220mDEFAULT CONFIGURATION[0m
+// DEFAULT CONFIGURATION
 // ============================================================================
 
 export const DEFAULT_CONFIG: EnvironmentConfig = {
@@ -114,11 +114,11 @@ export const DEFAULT_CONFIG: EnvironmentConfig = {
 };
 
 // ============================================================================
-// [38;5;220mCONFIGURATION LOADER[0m
+// CONFIGURATION LOADER
 // ============================================================================
 
 /**
- * [38;5;220mLoad configuration from environment variables[0m
+ * Load configuration from environment variables
  */
 export function loadConfig(): EnvironmentConfig {
   return {
@@ -149,7 +149,7 @@ export function loadConfig(): EnvironmentConfig {
 }
 
 /**
- * [38;5;220mGet configuration instance[0m
+ * Get configuration instance
  */
 let configInstance: EnvironmentConfig | null = null;
 
@@ -161,14 +161,14 @@ export function getConfig(): EnvironmentConfig {
 }
 
 /**
- * [38;5;220mReset configuration (useful for testing)[0m
+ * Reset configuration (useful for testing)
  */
 export function resetConfig(): void {
   configInstance = null;
 }
 
 /**
- * [38;5;220mValidate configuration[0m
+ * Validate configuration
  */
 export function validateConfig(config: EnvironmentConfig): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -210,11 +210,11 @@ export function validateConfig(config: EnvironmentConfig): { valid: boolean; err
 }
 
 // ============================================================================
-// [38;5;220mSERVICE-SPECIFIC CONFIGURATION[0m
+// SERVICE-SPECIFIC CONFIGURATION
 // ============================================================================
 
 /**
- * [38;5;220mPipeline Service Configuration[0m
+ * Pipeline Service Configuration
  */
 export interface PipelineServiceConfig {
   maxConcurrentRuns: number;
@@ -235,7 +235,7 @@ export const DEFAULT_PIPELINE_CONFIG: PipelineServiceConfig = {
 };
 
 /**
- * [38;5;220mGraph Service Configuration[0m
+ * Graph Service Configuration
  */
 export interface GraphServiceConfig {
   maxGraphSize: number; // max nodes per graph
@@ -256,7 +256,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphServiceConfig = {
 };
 
 /**
- * [38;5;220mTDA Service Configuration[0m
+ * TDA Service Configuration
  */
 export interface TdaServiceConfig {
   maxGraphSize: number; // max nodes for TDA analysis
@@ -275,7 +275,7 @@ export const DEFAULT_TDA_CONFIG: TdaServiceConfig = {
 };
 
 /**
- * [38;5;220mUI Service Configuration[0m
+ * UI Service Configuration
  */
 export interface UiServiceConfig {
   devServerPort: number;
@@ -292,11 +292,11 @@ export const DEFAULT_UI_CONFIG: UiServiceConfig = {
 };
 
 // ============================================================================
-// [38;5;220mCONFIGURATION HELPERS[0m
+// CONFIGURATION HELPERS
 // ============================================================================
 
 /**
- * [38;5;220mGet configuration value with type safety[0m
+ * Get configuration value with type safety
  */
 export function getConfigValue<T>(key: keyof EnvironmentConfig): T {
   const config = getConfig();
@@ -304,28 +304,28 @@ export function getConfigValue<T>(key: keyof EnvironmentConfig): T {
 }
 
 /**
- * [38;5;220mCheck if running in development mode[0m
+ * Check if running in development mode
  */
 export function isDev(): boolean {
   return getConfig().NODE_ENV === 'development';
 }
 
 /**
- * [38;5;220mCheck if running in production mode[0m
+ * Check if running in production mode
  */
 export function isProd(): boolean {
   return getConfig().NODE_ENV === 'production';
 }
 
 /**
- * [38;5;220mCheck if running in test mode[0m
+ * Check if running in test mode
  */
 export function isTest(): boolean {
   return getConfig().NODE_ENV === 'test';
 }
 
 // ============================================================================
-// [38;5;220mEXPORT ALL CONFIGURATIONS[0m
+// EXPORT ALL CONFIGURATIONS
 // ============================================================================
 
 export {

@@ -10,8 +10,11 @@ export interface PipelineTool {
   name: string
   label: string
   kind: 'collection' | 'extraction'
+  category: 'collection' | 'extraction'
   group: string
   description: string
+  version?: string
+  status?: 'installed' | 'available' | 'error'
   available: boolean
 }
 
@@ -54,10 +57,14 @@ export interface PipelineRun {
   createdAt: number | null
   startedAt: number | null
   finishedAt: number | null
+  duration: number | null
   error: string | null
+  errors: string[] | null
   stages: PipelineRunStage[]
   summary: PipelineRunSummary | null
   enginesOnline: boolean | null
+  nodesCollected?: number
+  edgesCollected?: number
 }
 
 export interface PipelineEvent {
@@ -91,6 +98,20 @@ export const pipelineApi = {
   },
   cancel(id: string): Promise<{ ok: boolean }> {
     return fetchJson(`${BASE}/runs/${id}/cancel`, { method: 'POST' })
+  },
+  subscribeRun(id: string, onEvent: (event: PipelineEvent) => void): EventSource {
+    const es = new EventSource(`${BASE}/runs/${id}/events`)
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        onEvent(data)
+      } catch {}
+    }
+    es.onerror = () => {
+      onEvent({ ts: Date.now(), level: 'error', tool: 'system', text: 'Connection lost' })
+      es.close()
+    }
+    return es
   },
 }
 

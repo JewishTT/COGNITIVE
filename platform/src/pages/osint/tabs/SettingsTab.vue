@@ -1,10 +1,10 @@
 <template>
   <div class="settings-tab">
-    <!-- [38;5;240mSettings Header[0m -->
+    <!-- Settings Header -->
     <div class="settings-header">
       <div class="settings-info">
         <h2 class="settings-title">
-          <span class="title-icon">⚙️</span>
+          <span class="title-icon"><UiIcon name="settings" /></span>
           Настройки OSINT
         </h2>
         <p class="settings-description">
@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mSettings Navigation[0m -->
+    <!-- Settings Navigation -->
     <div class="settings-nav glass-card">
       <button 
         v-for="section in settingsSections" 
@@ -50,14 +50,14 @@
       </button>
     </div>
 
-    <!-- [38;5;240mSettings Content[0m -->
+    <!-- Settings Content -->
     <div class="settings-content">
       <transition name="fade" mode="out-in">
-        <!-- [38;5;240mGeneral Settings[0m -->
+        <!-- General Settings -->
         <div class="settings-section" v-if="activeSection === 'general'" key="general">
           <div class="section-header">
             <h3 class="section-title">
-              <span class="section-icon">📋</span>
+              <span class="section-icon"><UiIcon name="clipboard" /></span>
               Общие настройки
             </h3>
             <p class="section-description">
@@ -125,11 +125,11 @@
           </div>
         </div>
 
-        <!-- [38;5;240mModule Settings[0m -->
+        <!-- Module Settings -->
         <div class="settings-section" v-else-if="activeSection === 'modules'" key="modules">
           <div class="section-header">
             <h3 class="section-title">
-              <span class="section-icon">🧩</span>
+              <span class="section-icon"><UiIcon name="puzzle" /></span>
               Модули OSINT
             </h3>
             <p class="section-description">
@@ -173,11 +173,11 @@
           </div>
         </div>
 
-        <!-- [38;5;240mIntegrations Settings[0m -->
+        <!-- Integrations Settings -->
         <div class="settings-section" v-else-if="activeSection === 'integrations'" key="integrations">
           <div class="section-header">
             <h3 class="section-title">
-              <span class="section-icon">🔗</span>
+              <span class="section-icon"><UiIcon name="link" /></span>
               Интеграции
             </h3>
             <p class="section-description">
@@ -241,11 +241,11 @@
           </div>
         </div>
 
-        <!-- [38;5;240mAnalysis Settings[0m -->
+        <!-- Analysis Settings -->
         <div class="settings-section" v-else-if="activeSection === 'analysis'" key="analysis">
           <div class="section-header">
             <h3 class="section-title">
-              <span class="section-icon">📊</span>
+              <span class="section-icon"><UiIcon name="chartBar" /></span>
               Настройки анализа
             </h3>
             <p class="section-description">
@@ -325,11 +325,11 @@
           </div>
         </div>
 
-        <!-- [38;5;240mAdvanced Settings[0m -->
+        <!-- Advanced Settings -->
         <div class="settings-section" v-else-if="activeSection === 'advanced'" key="advanced">
           <div class="section-header">
             <h3 class="section-title">
-              <span class="section-icon">🛠️</span>
+              <span class="section-icon"><UiIcon name="wrench" /></span>
               Дополнительные настройки
             </h3>
             <p class="section-description">
@@ -449,11 +449,11 @@ const testing = ref<string | null>(null)
 
 // Settings sections
 const settingsSections = [
-  { id: 'general', label: 'Общие', icon: '📋', count: 0 },
-  { id: 'modules', label: 'Модули', icon: '🧩', count: 8 },
-  { id: 'integrations', label: 'Интеграции', icon: '🔗', count: 6 },
-  { id: 'analysis', label: 'Анализ', icon: '📊', count: 0 },
-  { id: 'advanced', label: 'Дополнительно', icon: '🛠️', count: 0 },
+  { id: 'general', label: 'Общие', icon: 'clipboard', count: 0 },
+  { id: 'modules', label: 'Модули', icon: 'puzzle', count: 8 },
+  { id: 'integrations', label: 'Интеграции', icon: 'link', count: 6 },
+  { id: 'analysis', label: 'Анализ', icon: 'chartBar', count: 0 },
+  { id: 'advanced', label: 'Дополнительно', icon: 'wrench', count: 0 },
 ]
 
 const activeSection = ref('general')
@@ -489,7 +489,7 @@ const settings = ref({
 const modules = ref([
   { 
     id: 'flowsint', 
-    icon: '🎨', 
+    icon: 'palette', 
     name: 'Flowsint UI', 
     description: 'Интерфейс для работы с графами',
     enabled: true,
@@ -497,7 +497,7 @@ const modules = ref([
   },
   { 
     id: 'pipeline', 
-    icon: '🏭', 
+    icon: 'factory', 
     name: 'Конвейеры', 
     description: 'Обработка данных через конвейеры',
     enabled: true,
@@ -505,7 +505,7 @@ const modules = ref([
   },
   { 
     id: 'tda', 
-    icon: '🧮', 
+    icon: 'calculator', 
     name: 'TDA Анализ', 
     description: 'Топологический анализ данных',
     enabled: true,
@@ -513,7 +513,7 @@ const modules = ref([
   },
   { 
     id: 'enrichment', 
-    icon: '🔍', 
+    icon: 'search', 
     name: 'Обогащение', 
     description: 'Обогащение данных из внешних источников',
     enabled: true,
@@ -521,7 +521,7 @@ const modules = ref([
   },
   { 
     id: 'export', 
-    icon: '📤', 
+    icon: 'upload', 
     name: 'Экспорт', 
     description: 'Экспорт данных в различные форматы',
     enabled: true,
@@ -529,7 +529,7 @@ const modules = ref([
   },
   { 
     id: 'import', 
-    icon: '📥', 
+    icon: 'download', 
     name: 'Импорт', 
     description: 'Импорт данных из различных источников',
     enabled: false,
@@ -537,7 +537,7 @@ const modules = ref([
   },
   { 
     id: 'visualization', 
-    icon: '📊', 
+    icon: 'chartBar', 
     name: 'Визуализация', 
     description: '3D визуализация графов',
     enabled: true,
@@ -545,7 +545,7 @@ const modules = ref([
   },
   { 
     id: 'ai', 
-    icon: '🤖', 
+    icon: 'robot', 
     name: 'AI Ассистент', 
     description: 'Искусственный интеллект для анализа',
     enabled: true,

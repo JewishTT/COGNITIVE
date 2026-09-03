@@ -1,6 +1,14 @@
 import { createApp } from 'vue';
 import { createRouter, createWebHashHistory } from 'vue-router';
 import App from './App.vue';
+import './styles/main.css';
+import './styles/components.css';
+import './shared/tokens.css';
+import './shared/components.css';
+import './shared/utilities.css';
+import './shared/cyber.css';
+import './styles/animations.css';
+import UiIcon from './shared/UiIcon.vue';
 import ShellLayout from './components/ShellLayout.vue';
 import DashboardView from './views/DashboardView.vue';
 import GlobeView from './views/GlobeView.vue';
@@ -28,4 +36,4 @@ const router = createRouter({
   ],
 });
 
-createApp(App).use(router).mount('#platform-app');
+createApp(App).component('UiIcon', UiIcon).use(router).mount('#platform-app');

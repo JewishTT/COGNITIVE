@@ -1,6 +1,6 @@
 // platform/src/services/shared/lib/cache/index.ts
-// [38;5;240mUnified Caching System for OSINT Services[0m
-// [38;5;240mSupports multiple cache backends: Memory, LocalStorage, Redis[0m
+// Unified Caching System for OSINT Services
+// Supports multiple cache backends: Memory, LocalStorage, Redis
 
 import {
   CacheConfig,
@@ -10,11 +10,11 @@ import {
 import { getConfig } from '../../config';
 
 // ============================================================================
-// [38;5;220mTYPES[0m
+// TYPES
 // ============================================================================
 
 /**
- * [38;5;220mCache Backend Interface[0m
+ * Cache Backend Interface
  */
 export interface CacheBackend<T = unknown> {
   get: (key: string) => Promise<T | undefined>;
@@ -28,7 +28,7 @@ export interface CacheBackend<T = unknown> {
 }
 
 /**
- * [38;5;220mCache Key Generator Options[0m
+ * Cache Key Generator Options
  */
 export interface CacheKeyOptions {
   prefix?: string;
@@ -37,11 +37,11 @@ export interface CacheKeyOptions {
 }
 
 // ============================================================================
-// [38;5;220mMEMORY CACHE BACKEND[0m
+// MEMORY CACHE BACKEND
 // ============================================================================
 
 /**
- * [38;5;220mIn-Memory Cache Backend[0m
+ * In-Memory Cache Backend
  */
 export class MemoryCacheBackend<T = unknown> implements CacheBackend<T> {
   private cache: Map<string, CacheEntry<T>> = new Map();
@@ -151,12 +151,12 @@ export class MemoryCacheBackend<T = unknown> implements CacheBackend<T> {
 }
 
 // ============================================================================
-// [38;5;220mLOCAL STORAGE CACHE BACKEND[0m
+// LOCAL STORAGE CACHE BACKEND
 // ============================================================================
 
 /**
- * [38;5;220mLocalStorage Cache Backend[0m
- * [38;5;240mUses browser's localStorage with serialization[0m
+ * LocalStorage Cache Backend
+ * Uses browser's localStorage with serialization
  */
 export class LocalStorageCacheBackend<T = unknown> implements CacheBackend<T> {
   private prefix: string;
@@ -277,12 +277,12 @@ export class LocalStorageCacheBackend<T = unknown> implements CacheBackend<T> {
 }
 
 // ============================================================================
-// [38;5;220mREDIS CACHE BACKEND[0m
+// REDIS CACHE BACKEND
 // ============================================================================
 
 /**
- * [38;5;220mRedis Cache Backend[0m
- * [38;5;240mUses Redis for distributed caching[0m
+ * Redis Cache Backend
+ * Uses Redis for distributed caching
  */
 export class RedisCacheBackend<T = unknown> implements CacheBackend<T> {
   private redis: any = null;
@@ -307,7 +307,7 @@ export class RedisCacheBackend<T = unknown> implements CacheBackend<T> {
       await this.redis.connect();
       this.connected = true;
     } catch (error) {
-      console.error(`[38;5;196m[RedisCache] Failed to connect:[0m`, error);
+      console.error(`[RedisCache] Failed to connect:`, error);
       this.connected = false;
     }
   }
@@ -440,12 +440,12 @@ export class RedisCacheBackend<T = unknown> implements CacheBackend<T> {
 }
 
 // ============================================================================
-// [38;5;220mHYBRID CACHE BACKEND[0m
+// HYBRID CACHE BACKEND
 // ============================================================================
 
 /**
- * [38;5;220mHybrid Cache Backend[0m
- * [38;5;240mUses multiple backends with fallback strategy[0m
+ * Hybrid Cache Backend
+ * Uses multiple backends with fallback strategy
  */
 export class HybridCacheBackend<T = unknown> implements CacheBackend<T> {
   private backends: CacheBackend<T>[];
@@ -574,12 +574,12 @@ export class HybridCacheBackend<T = unknown> implements CacheBackend<T> {
 }
 
 // ============================================================================
-// [38;5;220mCACHE MANAGER[0m
+// CACHE MANAGER
 // ============================================================================
 
 /**
- * [38;5;220mCache Manager[0m
- * [38;5;240mCentralized cache management with namespaces[0m
+ * Cache Manager
+ * Centralized cache management with namespaces
  */
 export class CacheManager {
   private backends: Map<string, CacheBackend> = new Map();
@@ -598,7 +598,7 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mCreate a cache backend based on configuration[0m
+   * Create a cache backend based on configuration
    */
   private createBackend(config: CacheConfig): CacheBackend {
     switch (config.strategy) {
@@ -615,7 +615,7 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mGet or create a named cache backend[0m
+   * Get or create a named cache backend
    */
   getBackend(name: string, config?: Partial<CacheConfig>): CacheBackend {
     if (!this.backends.has(name)) {
@@ -626,14 +626,14 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mGet the default cache backend[0m
+   * Get the default cache backend
    */
   getDefaultBackend(): CacheBackend {
     return this.defaultBackend;
   }
 
   /**
-   * [38;5;220mGenerate a cache key with optional namespace[0m
+   * Generate a cache key with optional namespace
    */
   generateKey(
     parts: string[],
@@ -651,7 +651,7 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mGenerate a cache key for graph data[0m
+   * Generate a cache key for graph data
    */
   generateGraphKey(
     graphId: string,
@@ -666,7 +666,7 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mGenerate a cache key for pipeline results[0m
+   * Generate a cache key for pipeline results
    */
   generatePipelineKey(
     runId: string,
@@ -676,7 +676,7 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mGenerate a cache key for TDA analysis[0m
+   * Generate a cache key for TDA analysis
    */
   generateTdaKey(
     graphId: string,
@@ -686,7 +686,7 @@ export class CacheManager {
   }
 
   /**
-   * [38;5;220mCleanup all caches[0m
+   * Cleanup all caches
    */
   async cleanup(): Promise<void> {
     for (const backend of this.backends.values()) {
@@ -698,11 +698,11 @@ export class CacheManager {
 }
 
 // ============================================================================
-// [38;5;220mDECORATORS FOR CACHING[0m
+// DECORATORS FOR CACHING
 // ============================================================================
 
 /**
- * [38;5;220mCache Decorator Options[0m
+ * Cache Decorator Options
  */
 export interface CacheDecoratorOptions {
   ttl?: number;
@@ -712,7 +712,7 @@ export interface CacheDecoratorOptions {
 }
 
 /**
- * [38;5;220mCreate a caching decorator for functions[0m
+ * Create a caching decorator for functions
  */
 export function cache<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
@@ -764,7 +764,7 @@ export function cache<T extends (...args: unknown[]) => Promise<unknown>>(
 }
 
 /**
- * [38;5;220mCreate a caching decorator with custom key generator[0m
+ * Create a caching decorator with custom key generator
  */
 export function cacheWithKey<T extends (...args: unknown[]) => Promise<unknown>>(
   keyGenerator: (...args: unknown[]) => string,
@@ -774,7 +774,7 @@ export function cacheWithKey<T extends (...args: unknown[]) => Promise<unknown>>
 }
 
 // ============================================================================
-// [38;5;220mSINGLETON INSTANCE[0m
+// SINGLETON INSTANCE
 // ============================================================================
 
 let cacheManager: CacheManager | null = null;
@@ -794,7 +794,7 @@ export function resetCacheManager(): void {
 }
 
 // ============================================================================
-// [38;5;220mEXPORTS[0m
+// EXPORTS
 // ============================================================================
 
 export {

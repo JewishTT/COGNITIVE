@@ -2,7 +2,7 @@
   <div class="os-inspector" v-if="node">
     <div class="os-inspector-head">
       <strong>{{ node.nodeLabel }}</strong>
-      <button class="os-ico-btn" title="Очистить выделение" @click="$emit('close')">✕</button>
+      <button class="os-ico-btn" title="Очистить выделение" @click="$emit('close')"><UiIcon name="close" :size="14" /></button>
     </div>
     <div class="os-inspector-meta">
       <span class="os-chip os-chip-type">{{ node.nodeType }}</span>

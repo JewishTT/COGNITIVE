@@ -8,13 +8,13 @@
     >
       <div class="os-tda-header-content">
         <span class="os-tda-title">
-          <span class="os-tda-icon">[38;5;208m[0m</span>
-          TDA-[38;5;220m[0m[38;5;220mLayer[0m
+          <span class="os-tda-icon"></span>
+          TDA-Layer
         </span>
-        <span class="os-tda-subtitle">[38;5;240mSimplicial Complex Analysis[0m</span>
+        <span class="os-tda-subtitle">Simplicial Complex Analysis</span>
       </div>
       <span class="os-tda-toggle">
-        {{ expanded ? '[38;5;220m[0m[38;5;220m[0m' : '[38;5;220m[0m[38;5;220m[0m' }}
+        {{ expanded ? '' : '' }}
       </span>
     </div>
 
@@ -23,27 +23,27 @@
       <!-- Stats Overview -->
       <div v-if="graph && graph.nds.length > 0" class="os-tda-stats">
         <div class="os-tda-stat">
-          <span class="os-tda-stat-value">[38;5;220m{{ tdaResult?.nodeCount || graph.nds.length }}[0m</span>
+          <span class="os-tda-stat-value">{{ tdaResult?.nodeCount || graph.nds.length }}</span>
           <span class="os-tda-stat-label">Nodes</span>
         </div>
         <div class="os-tda-stat">
-          <span class="os-tda-stat-value">[38;5;208m{{ tdaResult?.edgeCount || graph.rls.length }}[0m</span>
+          <span class="os-tda-stat-value">{{ tdaResult?.edgeCount || graph.rls.length }}</span>
           <span class="os-tda-stat-label">Edges</span>
         </div>
         <div class="os-tda-stat">
-          <span class="os-tda-stat-value">[38;5;196m{{ tdaResult?.h0 || 0 }}[0m</span>
+          <span class="os-tda-stat-value">{{ tdaResult?.h0 || 0 }}</span>
           <span class="os-tda-stat-label">H0 (Components)</span>
         </div>
         <div class="os-tda-stat">
-          <span class="os-tda-stat-value">[38;5;214m{{ tdaResult?.h1 || 0 }}[0m</span>
+          <span class="os-tda-stat-value">{{ tdaResult?.h1 || 0 }}</span>
           <span class="os-tda-stat-label">H1 (Cycles)</span>
         </div>
         <div class="os-tda-stat">
-          <span class="os-tda-stat-value">[38;5;202m{{ tdaResult?.bridges?.length || 0 }}[0m</span>
+          <span class="os-tda-stat-value">{{ tdaResult?.bridges?.length || 0 }}</span>
           <span class="os-tda-stat-label">Bridges</span>
         </div>
         <div class="os-tda-stat">
-          <span class="os-tda-stat-value">[38;5;196m{{ tdaResult?.cutVertices?.length || 0 }}[0m</span>
+          <span class="os-tda-stat-value">{{ tdaResult?.cutVertices?.length || 0 }}</span>
           <span class="os-tda-stat-label">Cut Vertices</span>
         </div>
       </div>
@@ -58,9 +58,9 @@
         />
       </div>
       <div v-else class="os-tda-empty">
-        <div class="os-tda-empty-icon">[38;5;240m[0m</div>
-        <p class="os-tda-empty-text">[38;5;240mNo graph data available[0m</p>
-        <p class="os-tda-empty-hint">[38;5;240mLoad a sketch to enable TDA analysis[0m</p>
+        <div class="os-tda-empty-icon"></div>
+        <p class="os-tda-empty-text">No graph data available</p>
+        <p class="os-tda-empty-hint">Load a sketch to enable TDA analysis</p>
       </div>
 
       <!-- Analysis Controls -->
@@ -71,8 +71,8 @@
             @click="runTdaAnalysis"
             :disabled="!graph || graph.nds.length === 0 || analyzing"
           >
-            <span v-if="!analyzing">[38;5;46m[0m Run Full Analysis</span>
-            <span v-else>[38;5;220m[0m Analyzing...</span>
+            <span v-if="!analyzing"> Run Full Analysis</span>
+            <span v-else> Analyzing...</span>
           </button>
           <button 
             class="btn os-btn-tda" 

@@ -5,6 +5,7 @@
 // синтетические данные (тот же принцип «честной деградации», что и в проекте).
 
 import { run, pyRun, pyHas, venvPython, ensureVenv, pythonBin, which } from './runner.mjs'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { config } from './config.mjs'
@@ -39,19 +40,24 @@ async function pipInstall(pkg) {
 export const tools = {
   bbot: {
     kind: 'collection', label: 'BBOT', group: 'Первичный сбор',
-    description: 'Оркестратор пассивного/активного сбора: WHOIS, DNS, поддомены, Shodan.',
+    description: 'Оркестратор пассивного/активного сбора: WHOIS, DNS, поддомены, Shodan. Требует Linux/WSL.',
     detect() {
-      if (which('bbot')) return true
-      const py = venvPython()
-      return Boolean(py && whichFromPy(py, 'bbot'))
+      if (process.platform !== 'linux') return false
+      const condaPy = path.join(config.conda.cognitive, 'python.exe')
+      try { execFileSync(condaPy, ['-c', 'from bbot.scanner import Scanner'], { stdio: 'ignore', timeout: 5000 }); return true } catch {}
+      return false
     },
-    install() { return pipInstall('bbot') },
+    install() { return { ok: false, msg: 'BBOT требует Linux/WSL (Windows не поддерживается)' } },
   },
   theharvester: {
     kind: 'collection', label: 'theHarvester', group: 'Первичный сбор',
     description: 'Email/поддомены/имена по домену (пассивные источники).',
-    detect() { return Boolean(which('theHarvester') || pyHas('theHarvester')) },
-    install() { return pipInstall('theharvester') },
+    detect() {
+      const condaPy = path.join(config.conda.harvester, 'python.exe')
+      try { execFileSync(condaPy, ['-c', 'import theHarvester'], { stdio: 'ignore', timeout: 5000 }); return true } catch {}
+      return false
+    },
+    install() { return { ok: false, msg: 'theHarvester установлен в conda harvester окружении' } },
   },
   sherlock: {
     kind: 'collection', label: 'Sherlock', group: 'Поиск по нику',
@@ -67,24 +73,38 @@ export const tools = {
   },
   snscrape: {
     kind: 'collection', label: 'snscrape', group: 'Соцсети · Twitter/X',
-    description: 'Сбор твитов/пользователей Twitter/X без API.',
+    description: 'Сбор твитов/пользователей Twitter/X без API (библиотека, не CLI).',
     detect() { return Boolean(pyHas('snscrape')) },
     install() { return pipInstall('snscrape') },
   },
   tgspyder: {
     kind: 'collection', label: 'TGSpyder', group: 'Соцсети · Telegram',
     description: 'Сбор данных из Telegram (Telethon): lookup юзера, сообщения, инвайты.',
-    detect() { return Boolean(which('tgspyder') || pyHas('tgspyder') || (venvPython() && whichFromPy(venvPython(), 'tgspyder'))) },
-    // ВАЖНО: пакета tgspyder нет на PyPI — ставим CLI из GitHub
-    // (https://github.com/Darksight-Analytics/tgspyder) как исполняемый пакет.
+    detect() {
+      // TGSpyder requires git clone from GitHub and manual setup
+      // Check if the binary exists in venv Scripts
+      const py = venvPython() || pythonBin()
+      if (!py) return false
+      const dir = path.dirname(py)
+      const candidates = process.platform === 'win32'
+        ? ['tgspyder.exe', 'tgspyder.cmd', 'tgspyder.bat', 'tgspyder']
+        : ['tgspyder']
+      for (const f of candidates) {
+        try {
+          if (fs.statSync(path.join(dir, f)).isFile()) return true
+        } catch {}
+      }
+      return false
+    },
+    // TGSpyder is not on PyPI — install from GitHub
     async install() {
       if (!ensureVenv()) return { ok: false, msg: 'нет python/pip — не могу установить' }
       const py = venvPython() || pythonBin()
       const srcDir = path.join(config.workDir, '.tgspyder-src')
       const cloned = await run(['git', 'clone', '--depth', '1', 'https://github.com/Darksight-Analytics/tgspyder.git', srcDir], { timeout: pipTimeoutMs })
-      if (!cloned.ok) return { ok: false, msg: `git clone tgspyder: ${(cloned.err || cloned.out || '').slice(0, 300)}` }
+      if (!cloned.ok) return { ok: false, msg: 'git clone tgspyder: ' + (cloned.err || cloned.out || '').slice(0, 300) }
       const inst = await run([py, '-m', 'pip', 'install', '--quiet', srcDir], { timeout: pipTimeoutMs })
-      if (!inst.ok) return { ok: false, msg: `pip install tgspyder: ${inst.err.slice(0, 300)}` }
+      if (!inst.ok) return { ok: false, msg: 'pip install tgspyder: ' + inst.err.slice(0, 300) }
       return { ok: true, msg: 'TGSpyder установлен из GitHub (требует настройки ~/.tgspyder.conf)' }
     },
   },
@@ -96,9 +116,9 @@ export const tools = {
   },
   searxng: {
     kind: 'collection', label: 'SearXNG', group: 'Метапоиск',
-    description: 'Свой агрегатор поисковиков без API-ключей.',
+    description: 'Свой агрегатор поисковиков без API-ключей (Docker, порт 8888).',
     detect() { return Boolean(config.searxng.url || config.searxng.json) },
-    install() { return { ok: false, msg: 'SearXNG — отдельный сервис; укажите SEARXNG_URL в .env' } },
+    install() { return { ok: false, msg: 'SearXNG — отдельный Docker-сервис; запустите docker compose up -d' } },
   },
   regex: {
     kind: 'extraction', label: 'Regex', group: 'Извлечение',
@@ -120,8 +140,18 @@ export const tools = {
   exiftool: {
     kind: 'extraction', label: 'exiftool', group: 'Метаданные',
     description: 'EXIF/GPS-метаданные из изображений и файлов.',
-    detect() { return Boolean(which('exiftool')) },
-    install() { return { ok: false, msg: 'exiftool — системный бинарь ExifTool; добавьте в PATH' } },
+    detect() {
+      if (which('exiftool')) return true
+      const py = venvPython() || pythonBin()
+      if (py) {
+        const dir = path.dirname(py)
+        for (const f of ['exiftool.bat', 'exiftool.exe', 'exiftool']) {
+          try { if (fs.statSync(path.join(dir, f)).isFile()) return true } catch {}
+        }
+      }
+      return false
+    },
+    install() { return { ok: false, msg: 'exiftool установлен в pipeline-venv' } },
   },
 }
 

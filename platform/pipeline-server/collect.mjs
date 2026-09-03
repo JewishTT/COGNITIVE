@@ -9,10 +9,13 @@
 // (кнопка «Установить» → pip в venv).
 
 import { tools, allToolStatus, ensureVenv, pythonBin } from './tools.mjs'
-import { run, pyRun, which, venvPython } from './runner.mjs'
+import { run, pyRun, which, venvPython, pyHas } from './runner.mjs'
 import { config } from './config.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
+
+function condaPython(env) { return path.join(config.conda[env], 'python.exe') }
+function condaBin(env, name) { return path.join(config.conda[env], 'Scripts', name) }
 
 // Приводит единственное число kind записи к plural-бакету аккумулятора.
 const KIND_BUCKET = { profile: 'profiles', email: 'emails', phone: 'phones', host: 'hosts', link: 'links', text: 'texts', file: 'files' }
@@ -51,7 +54,8 @@ const runner = {
   async theharvester(target, type, onEvent, signal) {
     if (!tools.theharvester.detect()) return null
     onEvent && onEvent('info', 'theHarvester', `Запуск theHarvester для ${target}`)
-    const res = await runCli('theHarvester', 'theHarvester', ['-d', target, '-b', 'duckduckgo', '-l', '30', '--no-color'], { timeout: 60000, signal })
+    const harvesterBin = condaBin('harvester', 'theHarvester.exe')
+    const res = await run([harvesterBin, '-d', target, '-b', 'crtsh,duckduckgo,hackertarget', '-l', '30'], { timeout: 60000, signal })
     if (!res.ok) return empty('theharvester', target, type)
     const emails = new Set()
     const hosts = new Set()
@@ -116,10 +120,8 @@ const runner = {
     if (!tools.bbot.detect()) return null
     onEvent && onEvent('info', 'bbot', `BBOT по цели ${target}`)
     const mods = bbotModules(type)
-    // Флаги проверены по BBOT 3.x (bbot/scanner/preset/args.py): -t/-m/-y/--json/--no-deps
-    // существуют; --no-banner в CLI отсутствует и убран. -y снимает интерактивный
-    // подтверждающий промпт (иначе в неинтерактивном запуске скан повиснет).
-    const res = await runCli('bbot', 'bbot', ['-t', target, '-m', mods, '-y', '--json', '--no-deps', '--no-color'], { timeout: 120000, signal })
+    const bbotBin = condaBin('cognitive', 'bbot.exe')
+    const res = await run([bbotBin, '-t', target, '-m', mods, '-y', '--json', '--no-deps', '--no-color'], { timeout: 120000, signal })
     if (!res.ok) return empty('bbot', target, type)
     const hosts = new Set(), emails = new Set(), urls = new Set(), socials = []
     for (const line of res.out.split(/\r?\n/)) {
@@ -202,8 +204,9 @@ const runner = {
 
   // Краулер — роль Scrapy/Playwright в 0-слое. Обходит ссылки, собранные
   // предыдущими тулами (links/hosts/profiles/texts), снимает текст страниц для
-  // regex+spaCy и качает несколько изображений под exiftool. Без внешних
-  // зависимостей: чистый fetch + HTML-стриппинг.
+  // regex+spaCy и качает несколько изображений под exiftool.
+  // При наличии Playwright использует headless Chromium с anti-bot stealth,
+  // иначе откатывается на чистый fetch + HTML-стриппинг.
   async crawl(target, type, onEvent, signal, acc) {
     const urls = []
     const seen = new Set()
@@ -225,41 +228,33 @@ const runner = {
 
     const picked = urls.slice(0, config.crawl.maxPages)
     onEvent && onEvent('info', 'crawler', `Обход ${picked.length} страниц (макс. ${config.crawl.maxPages})`)
-    const results = []
-    const files = []
-    let idx = 0
-    const workers = Math.min(config.crawl.maxConcurrency, picked.length)
-    const worker = async () => {
-      while (idx < picked.length) {
-        if (signal && signal.aborted) return
-        const u = picked[idx++]
-        try {
-          const html = await fetchPage(u, signal)
-          if (!html) continue
-          const text = htmlToText(html)
-          if (text) results.push({ kind: 'text', url: u, text: text.slice(0, 40000), source: 'crawler', confidence: 0.6 })
-          // mailto:/tel: из html — структурные контакты с максимальной уверенностью
-          for (const m of html.matchAll(/mailto:([^"'\\s>]+)/gi)) {
-            const e = m[1].replace(/[?#].*$/, '').toLowerCase()
-            if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(e)) {
-              results.push({ kind: 'email', email: e, source: 'crawler', confidence: 0.9 })
-            }
-          }
-          for (const m of html.matchAll(/tel:([+\d][\d\s().-]{5,})/gi)) {
-            results.push({ kind: 'phone', phone: m[1].trim(), source: 'crawler', confidence: 0.85 })
-          }
-          // изображения → exiftool (EXIF/GPS), в пределах лимита
-          for (const img of extractImages(html, u)) {
-            if (files.length >= config.crawl.maxImages) break
-            const saved = await downloadImage(img, signal)
-            if (saved) files.push({ kind: 'file', path: saved.path, url: img, source: 'crawler', confidence: 0.5 })
-          }
-        } catch {
-          // страница не ответила — пропускаем, честно
-        }
+
+    // Определяем доступность Playwright с stealth-плагинами.
+    const hasPlaywright = pyHas('playwright')
+    const hasStealth = hasPlaywright && pyHas('playwright_stealth')
+
+    let results = []
+    let files = []
+
+    if (hasPlaywright) {
+      onEvent && onEvent('info', 'crawler', `Playwright доступен (${hasStealth ? 'stealth' : 'plain'}) — запуск headless Chromium`)
+      try {
+        const pwResult = await crawlWithPlaywright(picked, config.crawl, onEvent, signal)
+        results = pwResult.results
+        files = pwResult.files
+      } catch (e) {
+        onEvent && onEvent('warn', 'crawler', `Playwright упал: ${e.message} — откат на fetch`)
+        const fb = await crawlWithFetch(picked, config.crawl, onEvent, signal)
+        results = fb.results
+        files = fb.files
       }
+    } else {
+      onEvent && onEvent('info', 'crawler', 'Playwright не установлен — fallback на fetch')
+      const fb = await crawlWithFetch(picked, config.crawl, onEvent, signal)
+      results = fb.results
+      files = fb.files
     }
-    await Promise.all(Array.from({ length: workers }, worker))
+
     results.push(...files)
     onEvent && onEvent('info', 'crawler', `Собрано: ${results.length} записей, файлов на EXIF: ${files.length}`)
     return { tool: 'crawler', target, type, available: true, results }
@@ -463,4 +458,204 @@ async function downloadImage(url, signal) {
     clearTimeout(timer)
     if (signal) signal.removeEventListener('abort', onAbort)
   }
+}
+
+// ---- Playwright crawler --------------------------------------------------
+
+// Краулер на базе Playwright: headless Chromium с anti-bot stealth (опционально).
+// Запускает Python-скрипт как subprocess — возвращает JSON с HTML каждой
+// страницы, mailto/tel-ссылками и размером контента.
+async function crawlWithPlaywright(urls, cfg, onEvent, signal) {
+  const hasStealth = pyHas('playwright_stealth')
+  const script = `
+import json, sys, asyncio
+
+async def crawl(urls, cfg, has_stealth):
+    from playwright.async_api import async_playwright
+
+    results = []
+    files = []
+
+    async with async_playwright() as pw:
+        launch_args = [
+            '--disable-blink-features=AutomationControlled',
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+        ]
+        browser = await pw.chromium.launch(
+            headless=True,
+            args=launch_args,
+        )
+        context = await browser.new_context(
+            user_agent=cfg.get('ua', ''),
+            viewport={"width": 1920, "height": 1080},
+            java_script_enabled=True,
+            bypass_csp=True,
+        )
+
+        # Stealth: скрываем признаки автоматизации, если плагин доступен
+        if has_stealth:
+            try:
+                from playwright_stealth import stealth_async
+            except ImportError:
+                stealth_async = None
+        else:
+            stealth_async = None
+
+        for url in urls:
+            try:
+                page = await context.new_page()
+                if stealth_async:
+                    await stealth_async(page)
+
+                resp = await page.goto(
+                    url,
+                    wait_until='networkidle',
+                    timeout=cfg.get('pageTimeoutMs', 8000),
+                )
+                if not resp or not resp.ok:
+                    await page.close()
+                    continue
+
+                # Подождать额外 стабилизации SPA (если есть动态 контент)
+                try:
+                    await page.wait_for_load_state('networkidle', timeout=3000)
+                except Exception:
+                    pass
+
+                html = await page.content()
+
+                # Mailto / tel ссылки
+                mailtos = []
+                for m in __import__('re').findall(r'mailto:([^"\\'\\s>]+)', html):
+                    e = m.split('?')[0].split('#')[0].strip().lower()
+                    if __import__('re').match(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$', e):
+                        mailtos.append(e)
+
+                tels = []
+                for m in __import__('re').findall(r'tel:([+\\d][\\d\\s().-]{5,})', html):
+                    tels.append(m.strip())
+
+                # Изображения
+                imgs = []
+                for m in __import__('re').findall(r'<img[^>]+src=["\\']([^"\\'\\s>]+)["\\']', html):
+                    try:
+                        from urllib.parse import urljoin
+                        imgs.append(urljoin(url, m))
+                    except Exception:
+                        pass
+
+                results.append({
+                    'url': url,
+                    'html': html,
+                    'mailtos': mailtos,
+                    'tels': tels,
+                    'images': imgs[:8],
+                })
+
+                await page.close()
+            except Exception as e:
+                try:
+                    await page.close()
+                except Exception:
+                    pass
+
+        await browser.close()
+
+    return results, files
+
+urls = json.loads(sys.argv[1])
+cfg = json.loads(sys.argv[2])
+has_stealth = sys.argv[3] == '1'
+
+results, files = asyncio.run(crawl(urls, cfg, has_stealth))
+print(json.dumps({'results': results, 'files': files}))
+`
+
+  const py = venvPython() || pythonBin()
+  if (!py) throw new Error('No Python available for Playwright')
+
+  const args = [
+    py, '-c', script,
+    JSON.stringify(urls),
+    JSON.stringify({
+      ua: cfg.ua,
+      pageTimeoutMs: cfg.pageTimeoutMs,
+    }),
+    hasStealth ? '1' : '0',
+  ]
+
+  const res = await run(args, {
+    timeout: cfg.pageTimeoutMs * urls.length + 30000,
+    signal,
+  })
+
+  if (!res.ok) throw new Error(`Playwright script failed: ${res.err}`)
+
+  const parsed = JSON.parse(res.out.trim())
+  const out = { results: [], files: [] }
+
+  for (const page of parsed.results) {
+    const text = htmlToText(page.html)
+    if (text) {
+      out.results.push({ kind: 'text', url: page.url, text: text.slice(0, 40000), source: 'crawler/pw', confidence: 0.7 })
+    }
+    for (const e of (page.mailtos || [])) {
+      out.results.push({ kind: 'email', email: e, source: 'crawler/pw', confidence: 0.9 })
+    }
+    for (const p of (page.tels || [])) {
+      out.results.push({ kind: 'phone', phone: p, source: 'crawler/pw', confidence: 0.85 })
+    }
+    for (const img of (page.images || [])) {
+      if (out.files.length >= cfg.maxImages) break
+      try {
+        const saved = await downloadImage(img, signal)
+        if (saved) out.files.push({ kind: 'file', path: saved.path, url: img, source: 'crawler/pw', confidence: 0.5 })
+      } catch {}
+    }
+  }
+
+  return out
+}
+
+// ---- fetch-based crawler (fallback) ------------------------------------
+
+// Краулер на чистом fetch: обходит список URL, снимает HTML, парсит
+// mailto/tel, качает изображения. Используется когда Playwright недоступен.
+async function crawlWithFetch(urls, cfg, onEvent, signal) {
+  const results = []
+  const files = []
+  let idx = 0
+  const workers = Math.min(cfg.maxConcurrency, urls.length)
+  const worker = async () => {
+    while (idx < urls.length) {
+      if (signal && signal.aborted) return
+      const u = urls[idx++]
+      try {
+        const html = await fetchPage(u, signal)
+        if (!html) continue
+        const text = htmlToText(html)
+        if (text) results.push({ kind: 'text', url: u, text: text.slice(0, 40000), source: 'crawler/fetch', confidence: 0.6 })
+        for (const m of html.matchAll(/mailto:([^"'\\s>]+)/gi)) {
+          const e = m[1].replace(/[?#].*$/, '').toLowerCase()
+          if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(e)) {
+            results.push({ kind: 'email', email: e, source: 'crawler/fetch', confidence: 0.9 })
+          }
+        }
+        for (const m of html.matchAll(/tel:([+\\d][\\d\\s().-]{5,})/gi)) {
+          results.push({ kind: 'phone', phone: m[1].trim(), source: 'crawler/fetch', confidence: 0.85 })
+        }
+        for (const img of extractImages(html, u)) {
+          if (files.length >= cfg.maxImages) break
+          const saved = await downloadImage(img, signal)
+          if (saved) files.push({ kind: 'file', path: saved.path, url: img, source: 'crawler/fetch', confidence: 0.5 })
+        }
+      } catch {
+        // страница не ответила — пропускаем
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: workers }, worker))
+  return { results, files }
 }

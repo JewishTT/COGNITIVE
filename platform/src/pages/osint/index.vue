@@ -1,15 +1,15 @@
 <template>
   <div class="osint-page">
-    <!-- [38;5;240mPremium OSINT Header[0m -->
+    <!-- Premium OSINT Header -->
     <div class="osint-header">
       <div class="osint-header-content">
         <div class="osint-title">
           <h1 class="osint-title-text">
-            <span class="title-icon">[38;5;240m🔍[0m</span>
-            OSINT [38;5;240mКомандный Центр[0m
+            <span class="title-icon"><UiIcon name="search" :size="22" /></span>
+            OSINT Командный Центр
           </h1>
           <p class="osint-title-description">
-            [38;5;240mРасследования, Анализ Данных, Визуализация[0m
+            Расследования, Анализ Данных, Визуализация
           </p>
         </div>
         <div class="osint-header-actions">
@@ -38,7 +38,7 @@
         </div>
       </div>
       
-      <!-- [38;5;240mQuick Stats Bar[0m -->
+      <!-- Quick Stats Bar -->
       <div class="osint-stats">
         <div class="stat-item">
           <div class="stat-value">{{ stats.activeInvestigations }}</div>
@@ -62,7 +62,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mPremium Tabs Navigation[0m -->
+    <!-- Premium Tabs Navigation -->
     <nav class="os-tabs" role="tablist">
       <button
         v-for="tab in tabs"
@@ -73,13 +73,13 @@
         :aria-selected="activeTab === tab.id"
         @click="activeTab = tab.id"
       >
-        <span class="tab-icon">{{ tab.icon }}</span>
+        <span class="tab-icon"><UiIcon :name="tab.icon" :size="15" /></span>
         <span class="tab-label">{{ tab.label }}</span>
         <span v-if="tab.badge" class="tab-badge badge badge-primary">{{ tab.badge }}</span>
       </button>
     </nav>
 
-    <!-- [38;5;240mTab Content with Transitions[0m -->
+    <!-- Tab Content with Transitions -->
     <div class="os-tab-body">
       <transition name="fade" mode="out-in">
         <UiFlowsintTab v-if="activeTab === 'ui'" key="ui" />
@@ -95,37 +95,35 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import UiFlowsintTab from './tabs/UiFlowsintTab.vue'
-import PipelineTab from './tabs/PipelineTab.vue'
+import UiFlowsintTab from './tabs/flowsint/index.vue'
+import PipelineTab from './tabs/pipeline/index.vue'
 
 // Define tabs
 const tabs = [
   { 
     id: 'ui', 
-    label: 'UI Flowsint', 
-    icon: '[38;5;240m🎨[0m', 
-    badge: 'NEW'
+    label: 'Graph Investigation', 
+    icon: 'search'
   },
   { 
     id: 'pipeline', 
-    label: 'Конвейеры', 
-    icon: '[38;5;240m🏭[0m'
+    label: 'Pipeline', 
+    icon: 'bolt'
   },
   { 
     id: 'tda', 
-    label: 'TDA Анализ', 
-    icon: '[38;5;240m🧮[0m',
-    badge: 'PRO'
+    label: 'TDA Analysis', 
+    icon: 'calculator'
   },
   { 
     id: 'analytics', 
-    label: 'Аналитика', 
-    icon: '[38;5;240m📊[0m'
+    label: 'Analytics', 
+    icon: 'chartBar'
   },
   { 
     id: 'settings', 
-    label: 'Настройки', 
-    icon: '[38;5;240m⚙️[0m'
+    label: 'Settings', 
+    icon: 'settings'
   },
 ]
 
@@ -135,17 +133,15 @@ const router = useRouter()
 
 // Stats
 const stats = ref({
-  activeInvestigations: 12,
-  totalNodes: 15420,
-  totalEdges: 87345,
-  pipelineTasks: 8,
+  activeInvestigations: 0,
+  totalNodes: 0,
+  totalEdges: 0,
+  pipelineTasks: 0,
 })
 
 // Actions
 const refreshData = async () => {
   loading.value = true
-  // Simulate loading
-  await new Promise(resolve => setTimeout(resolve, 1000))
   loading.value = false
 }
 

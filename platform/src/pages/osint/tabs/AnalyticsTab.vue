@@ -1,10 +1,10 @@
 <template>
   <div class="analytics-tab">
-    <!-- [38;5;240mAnalytics Header[0m -->
+    <!-- Analytics Header -->
     <div class="analytics-header">
       <div class="analytics-info">
         <h2 class="analytics-title">
-          <span class="title-icon">📊</span>
+          <span class="title-icon"><UiIcon name="chartBar" /></span>
           OSINT Аналитика
         </h2>
         <p class="analytics-description">
@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mKey Metrics Bar[0m -->
+    <!-- Key Metrics Bar -->
     <div class="metrics-bar glass-card">
       <div class="metric" v-for="metric in keyMetrics" :key="metric.id">
         <div class="metric-icon" :class="`metric-icon-${metric.id}`">
@@ -60,13 +60,13 @@
       </div>
     </div>
 
-    <!-- [38;5;240mMain Dashboard Grid[0m -->
+    <!-- Main Dashboard Grid -->
     <div class="dashboard-grid">
-      <!-- [38;5;240mGraph Statistics Card[0m -->
+      <!-- Graph Statistics Card -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">📈</span>
+            <span class="card-icon"><UiIcon name="chartLine" /></span>
             Статистика Графа
           </h3>
           <div class="card-actions">
@@ -90,11 +90,11 @@
         </div>
       </div>
 
-      <!-- [38;5;240mEntity Distribution Chart[0m -->
+      <!-- Entity Distribution Chart -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">🏷️</span>
+            <span class="card-icon"><UiIcon name="tag" /></span>
             Распределение Сущностей
           </h3>
         </div>
@@ -112,11 +112,11 @@
         </div>
       </div>
 
-      <!-- [38;5;240mRelationship Types Chart[0m -->
+      <!-- Relationship Types Chart -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">🔗</span>
+            <span class="card-icon"><UiIcon name="link" /></span>
             Типы Связей
           </h3>
         </div>
@@ -134,7 +134,7 @@
         </div>
       </div>
 
-      <!-- [38;5;240mTemporal Analysis[0m -->
+      <!-- Temporal Analysis -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
@@ -176,11 +176,11 @@
         </div>
       </div>
 
-      <!-- [38;5;240mCentrality Analysis[0m -->
+      <!-- Centrality Analysis -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">⭐</span>
+            <span class="card-icon"><UiIcon name="star" /></span>
             Центральность
           </h3>
         </div>
@@ -215,11 +215,11 @@
         </div>
       </div>
 
-      <!-- [38;5;240mCommunity Detection[0m -->
+      <!-- Community Detection -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">👥</span>
+            <span class="card-icon"><UiIcon name="users" /></span>
             Обнаружение Сообществ
           </h3>
         </div>
@@ -259,11 +259,11 @@
         </div>
       </div>
 
-      <!-- [38;5;240mTop Entities by Type[0m -->
+      <!-- Top Entities by Type -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">🔝</span>
+            <span class="card-icon"><UiIcon name="trendUp" /></span>
             Топ Сущности
           </h3>
           <div class="card-actions">
@@ -291,11 +291,11 @@
         </div>
       </div>
 
-      <!-- [38;5;240mCustom Queries[0m -->
+      <!-- Custom Queries -->
       <div class="dashboard-card glass-card">
         <div class="card-header">
           <h3 class="card-title">
-            <span class="card-icon">🔍</span>
+            <span class="card-icon"><UiIcon name="search" /></span>
             Пользовательские Запросы
           </h3>
         </div>
@@ -370,48 +370,20 @@ const queryTime = ref(0)
 const availableGraphs = computed(() => graphStore.graphs)
 
 // Key Metrics
-const keyMetrics = ref([
-  { id: 'totalNodes', label: 'Всего узлов', value: 15420, change: 12.5, icon: '🔵' },
-  { id: 'totalEdges', label: 'Всего связей', value: 87345, change: 8.3, icon: '🔴' },
-  { id: 'activeInvestigations', label: 'Активных расследований', value: 12, change: -2.1, icon: '🟢' },
-  { id: 'newEntities', label: 'Новых сущностей', value: 428, change: 25.7, icon: '🟡' },
-  { id: 'dataVolume', label: 'Объем данных', value: 2.4, change: 15.2, icon: '💾' },
-])
+const keyMetrics = ref([])
 
 // Graph Stats
-const graphStats = ref([
-  { id: 'nodes', label: 'Узлы', value: 15420, max: 20000 },
-  { id: 'edges', label: 'Связи', value: 87345, max: 100000 },
-  { id: 'density', label: 'Плотность', value: 0.37, max: 1 },
-  { id: 'diameter', label: 'Диаметр', value: 8, max: 20 },
-  { id: 'components', label: 'Компоненты', value: 3, max: 10 },
-  { id: 'clusters', label: 'Кластеры', value: 15, max: 50 },
-])
+const graphStats = ref([])
 
 // Entity Distribution
-const entityDistribution = ref([
-  { type: 'Person', count: 4520 },
-  { type: 'Organization', count: 2830 },
-  { type: 'Location', count: 1890 },
-  { type: 'IP Address', count: 1245 },
-  { type: 'Domain', count: 985 },
-  { type: 'Email', count: 2340 },
-  { type: 'Phone', count: 1560 },
-])
+const entityDistribution = ref([])
 
 const totalEntities = computed(() => {
   return entityDistribution.value.reduce((sum, item) => sum + item.count, 0)
 })
 
 // Relationship Types
-const relationshipTypes = ref([
-  { type: 'CONNECTED_TO', count: 25400 },
-  { type: 'WORKS_AT', count: 18200 },
-  { type: 'LOCATED_AT', count: 12340 },
-  { type: 'COMMUNICATED_WITH', count: 8760 },
-  { type: 'OWNED_BY', count: 5420 },
-  { type: 'RESOLVED_TO', count: 3200 },
-])
+const relationshipTypes = ref([])
 
 // Time Ranges
 const timeRanges = ['day', 'week', 'month', 'quarter', 'year']
@@ -424,9 +396,9 @@ const rangeLabels = {
 }
 
 // Activity Stats
-const totalEvents = ref(12450)
-const peakActivity = ref(890)
-const avgActivity = ref(415)
+const totalEvents = ref(0)
+const peakActivity = ref(0)
+const avgActivity = ref(0)
 
 // Centrality
 const centralityMetrics = ['degree', 'betweenness', 'closeness', 'eigenvector']
@@ -437,50 +409,14 @@ const metricLabels = {
   eigenvector: 'Собственный вектор',
 }
 
-const centralityData = ref({
-  degree: [
-    { node: 'Node_A', value: 0.8523 },
-    { node: 'Node_B', value: 0.7215 },
-    { node: 'Node_C', value: 0.6542 },
-    { node: 'Node_D', value: 0.5879 },
-    { node: 'Node_E', value: 0.5126 },
-  ],
-  betweenness: [
-    { node: 'Node_A', value: 0.4523 },
-    { node: 'Node_B', value: 0.3876 },
-    { node: 'Node_C', value: 0.3124 },
-    { node: 'Node_D', value: 0.2845 },
-    { node: 'Node_E', value: 0.2456 },
-  ],
-  closeness: [
-    { node: 'Node_A', value: 0.7215 },
-    { node: 'Node_B', value: 0.6542 },
-    { node: 'Node_C', value: 0.5879 },
-    { node: 'Node_D', value: 0.5126 },
-    { node: 'Node_E', value: 0.4523 },
-  ],
-  eigenvector: [
-    { node: 'Node_A', value: 0.5879 },
-    { node: 'Node_B', value: 0.5126 },
-    { node: 'Node_C', value: 0.4523 },
-    { node: 'Node_D', value: 0.3876 },
-    { node: 'Node_E', value: 0.3124 },
-  ],
-})
+const centralityData = ref({ degree: [], betweenness: [], closeness: [], eigenvector: [] })
 
 const maxCentrality = computed(() => {
   return Math.max(...centralityData.value[activeCentrality.value].map(item => item.value))
 })
 
 // Communities
-const communities = ref([
-  { id: 'comm_1', size: 45, modularity: 0.8234 },
-  { id: 'comm_2', size: 32, modularity: 0.7891 },
-  { id: 'comm_3', size: 28, modularity: 0.7456 },
-  { id: 'comm_4', size: 22, modularity: 0.7123 },
-  { id: 'comm_5', size: 18, modularity: 0.6890 },
-  { id: 'comm_6', size: 15, modularity: 0.6543 },
-])
+const communities = ref([])
 
 const avgCommunitySize = computed(() => {
   return Math.round(communities.value.reduce((sum, c) => sum + c.size, 0) / communities.value.length)
@@ -491,17 +427,8 @@ const maxModularity = computed(() => {
 })
 
 // Top Entities
-const entityTypes = ref(['Person', 'Organization', 'Location', 'IP Address', 'Domain'])
-const topEntities = ref([
-  { id: 'entity_1', name: 'Иван Иванов', type: 'Person', score: 98.5 },
-  { id: 'entity_2', name: 'OOO Рога и Копыта', type: 'Organization', score: 92.3 },
-  { id: 'entity_3', name: 'Moscow, RU', type: 'Location', score: 88.7 },
-  { id: 'entity_4', name: '192.168.1.1', type: 'IP Address', score: 85.2 },
-  { id: 'entity_5', name: 'example.com', type: 'Domain', score: 82.4 },
-  { id: 'entity_6', name: 'Петр Петров', type: 'Person', score: 78.9 },
-  { id: 'entity_7', name: 'Google LLC', type: 'Organization', score: 76.5 },
-  { id: 'entity_8', name: 'Saint Petersburg, RU', type: 'Location', score: 74.2 },
-])
+const entityTypes = ref([])
+const topEntities = ref([])
 
 // Query Results
 const queryResults = ref<string[]>([])
@@ -524,29 +451,16 @@ const communityColors = [
 // Actions
 const loadGraphStats = () => {
   loading.value = true
-  // Simulate loading
-  setTimeout(() => {
-    loading.value = false
-  }, 500)
+  loading.value = false
 }
 
 const refreshStats = () => {
   loading.value = true
-  // Update metrics with random changes
-  keyMetrics.value = keyMetrics.value.map(m => ({
-    ...m,
-    value: Math.floor(m.value * (0.95 + Math.random() * 0.1)),
-    change: (Math.random() * 20 - 10).toFixed(1),
-  }))
-  
-  setTimeout(() => {
-    loading.value = false
-  }, 1000)
+  loading.value = false
 }
 
 const exportAnalytics = () => {
-  // Export logic
-  alert('Экспорт аналитики выполнен')
+  console.log('Экспорт аналитики')
 }
 
 const toggleGraphStats = () => {
@@ -559,32 +473,25 @@ const filterTopEntities = () => {
 
 const executeQuery = async () => {
   if (!customQuery.value.trim()) {
-    alert('Введите запрос')
+    console.log('Введите запрос')
     return
   }
   
   loadingQuery.value = true
   const startTime = Date.now()
   
-  // Simulate query execution
-  await new Promise(resolve => setTimeout(resolve, 1500))
-  
   queryTime.value = Date.now() - startTime
-  queryResults.value = [
-    '{ "id": 1, "name": "Иван Иванов", "type": "Person" }',
-    '{ "id": 2, "name": "OOO Рога и Копыта", "type": "Organization" }',
-    '{ "id": 3, "name": "Moscow, RU", "type": "Location" }',
-  ]
+  queryResults.value = []
   
   loadingQuery.value = false
 }
 
 const saveQuery = () => {
   if (!customQuery.value.trim()) {
-    alert('Введите запрос для сохранения')
+    console.log('Введите запрос для сохранения')
     return
   }
-  alert('Запрос сохранен')
+  console.log('Запрос сохранен')
 }
 
 // Formatters

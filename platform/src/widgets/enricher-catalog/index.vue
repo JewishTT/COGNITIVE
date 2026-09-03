@@ -27,7 +27,7 @@
         :class="{ 'os-enr-busy': running === e.name }"
       >
         <div class="os-enr-head">
-          <span class="os-enr-icon">{{ e.icon || '🧩' }}</span>
+          <span class="os-enr-icon"><UiIcon :name="e.icon || 'puzzle'" :size="16" /></span>
           <div class="os-enr-titles">
             <div class="os-enr-name">{{ e.name }}</div>
             <div class="os-enr-mod">{{ e.module }}</div>
@@ -81,7 +81,8 @@ const filtered = computed(() =>
 async function load() {
   busy.value = true
   try {
-    enrichers.value = await enricherApi.list()
+    const result = await enricherApi.list()
+    enrichers.value = result.enrichers || []
   } catch (e) {
     console.error(e)
   } finally {

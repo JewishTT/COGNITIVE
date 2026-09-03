@@ -1,8 +1,6 @@
 <!--
-  ChatContent.vue — render-function wrapper around the markdown-ish `renderContent`
-  helper. A plain template can't emit a dynamic array of VNodes, so this thin
-  functional component renders `renderContent(content)` as a real VNode tree
-  (no innerHTML → XSS-safe).
+  ChatContent.vue — render-function wrapper for the markdown renderer.
+  Outputs real VNodes (no innerHTML → XSS-safe).
 -->
 <script lang="ts">
 import { defineComponent, h } from 'vue'
@@ -13,16 +11,22 @@ export default defineComponent({
   inheritAttrs: false,
   props: { content: { type: String, required: true } },
   setup(props) {
-    return () => h('div', { class: 'gev-msg-body' }, renderContent(props.content))
+    return () => h('div', { class: 'msg-body' }, renderContent(props.content))
   },
 })
 </script>
 
 <style scoped>
-.gev-msg-body {
+.msg-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+.msg-body :deep(.gev-line) {
+  display: block;
+  min-width: 0;
+  width: 100%;
 }
 </style>
-

@@ -14,6 +14,8 @@ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 const PHONE = /(?:\+?\d[\d\s().-]{6,}\d)/g
 const IP = /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/g
 const URL_RE = /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,24}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)/g
+const BTC_RE = /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g
+const ETH_RE = /\b0x[a-fA-F0-9]{40}\b/g
 
 export function extractRegex(text) {
   const out = { emails: new Set(), phones: new Set(), ips: new Set(), urls: new Set() }
@@ -23,6 +25,13 @@ export function extractRegex(text) {
   for (const m of s.matchAll(IP)) out.ips.add(m[0])
   for (const m of s.matchAll(URL_RE)) out.urls.add(m[0])
   return { emails: [...out.emails], phones: [...out.phones], ips: [...out.ips], urls: [...out.urls] }
+}
+
+export function extractCrypto(text) {
+  const s = String(text || '')
+  const btc = [...new Set([...s.matchAll(BTC_RE)].map(m => m[0]).filter(v => v.length >= 25 && v.length <= 34 && (v[0] === '1' || v[0] === '3')))]
+  const eth = [...new Set([...s.matchAll(ETH_RE)].map(m => m[0]).filter(v => v.length === 42))]
+  return { btc, eth }
 }
 
 // --- spaCy NER (опционально) ------------------------------------------------
@@ -118,6 +127,7 @@ export async function extractEntities(collected, onEvent, signal) {
 
   const joined = texts.join('\n')
   const rx = extractRegex(joined)
+  const crypto = extractCrypto(joined)
 
   let nlp = { available: false, persons: [], orgs: [], gpes: [] }
   if (texts.length && !(signal && signal.aborted)) {
@@ -147,12 +157,14 @@ export async function extractEntities(collected, onEvent, signal) {
     exif = await extractExif(files)
   }
 
-  onEvent && onEvent('stage_done', 'extract', `Извлечено: ${emails.length} email, ${phones.length} тел., ${ips.length} IP, ${nlp.persons.length} персон, ${nlp.orgs.length} орг., exif: ${exif.results.length}`)
+  onEvent && onEvent('stage_done', 'extract', `Извлечено: ${emails.length} email, ${phones.length} тел., ${ips.length} IP, ${crypto.btc.length} BTC, ${crypto.eth.length} ETH, ${nlp.persons.length} персон, ${nlp.orgs.length} орг., exif: ${exif.results.length}`)
   return {
     emails,
     phones,
     ips,
     urls: rx.urls,
+    btc: crypto.btc,
+    eth: crypto.eth,
     persons: dedupeFilter(nlp.persons),
     orgs: dedupeFilter(nlp.orgs),
     gpes: dedupeFilter(nlp.gpes),

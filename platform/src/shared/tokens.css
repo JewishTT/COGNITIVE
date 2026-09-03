@@ -1,0 +1,106 @@
+/* ==========================================================================
+   COGNITIVE DESIGN TOKENS — PALANTIR STYLE
+   ========================================================================== */
+
+:root {
+  /* ── Node type colors ──────────────────────────────────── */
+  --node-person: #60a5fa;
+  --node-email: #4ade80;
+  --node-phone: #fbbf24;
+  --node-domain: #a78bfa;
+  --node-ip: #f87171;
+  --node-username: #2dd4bf;
+  --node-company: #94a3b8;
+  --node-location: #c084fc;
+  --node-document: #60a5fa;
+  --node-default: var(--color-accent-1);
+
+  /* ── Surface hierarchy ───────────────────────────────────── */
+  --surface-0: var(--color-background);
+  --surface-1: var(--color-surface);
+  --surface-2: var(--color-surface-hover);
+  --surface-3: var(--color-surface-active);
+  --surface-hover: var(--color-surface-hover);
+  --surface-active: var(--color-surface-active);
+
+  /* ── Text hierarchy ──────────────────────────────────────── */
+  --fg-primary: var(--color-text);
+  --fg-secondary: var(--color-text-secondary);
+  --fg-muted: var(--color-text-muted);
+  --fg-accent: var(--color-info-400);
+
+  /* ── Borders ─────────────────────────────────────────────── */
+  --border-default: var(--color-border);
+  --border-strong: var(--color-border-light);
+  --border-subtle: var(--color-border);
+
+  /* ── Status ──────────────────────────────────────────────── */
+  --status-success: var(--color-success-400);
+  --status-warning: var(--color-warning-400);
+  --status-error: var(--color-danger-400);
+  --status-info: var(--color-info-400);
+  --status-running: #2dd4bf;
+
+  /* ── Shadows (flat — none) ──────────────────────────────── */
+  --shadow-card: none;
+  --shadow-panel: none;
+  --shadow-elevated: none;
+  --shadow-glow: none;
+  --shadow-glow-strong: none;
+
+  /* ── Spacing (dense) ────────────────────────────────────── */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 12px;
+  --sp-6: 16px;
+  --sp-8: 24px;
+  --sp-10: 32px;
+  --sp-12: 48px;
+
+  /* ── Typography ──────────────────────────────────────────── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  --text-xs: 9px;
+  --text-sm: 10px;
+  --text-base: 12px;
+  --text-md: 13px;
+  --text-lg: 14px;
+  --text-xl: 16px;
+  --text-2xl: 20px;
+  --text-3xl: 24px;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ── Radius: flat ──────────────────────────────────────── */
+  --radius-xs: 1px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+
+  /* ── Transitions ─────────────────────────────────────────── */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 100ms;
+  --duration-normal: 150ms;
+  --duration-slow: 200ms;
+}
+/* ==========================================================================
+   CYBER-PALANTIR ACCENTS (appended layer)
+   Strict spy-glass frame + restrained neon accents.
+   ========================================================================== */
+:root {
+  --accent: #3aa0ff;
+  --accent-2: #22d3ee;
+  --accent-glow: rgba(58, 160, 255, 0.32);
+  --accent-2-glow: rgba(34, 211, 238, 0.28);
+  --grid-line: rgba(148, 163, 184, 0.05);
+  --glow-accent: 0 0 0 1px var(--accent-glow), 0 0 14px var(--accent-glow);
+  --glow-status: 0 0 8px rgba(52, 211, 153, 0.5);
+  --scanline: rgba(58, 160, 255, 0.06);
+}

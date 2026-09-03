@@ -1,10 +1,10 @@
 <template>
   <div class="tda-tab">
-    <!-- [38;5;240mTDA Header with Description[0m -->
+    <!-- TDA Header with Description -->
     <div class="tda-header">
       <div class="tda-info">
         <h2 class="tda-title">
-          <span class="title-icon">🧮</span>
+          <span class="title-icon"><UiIcon name="calculator" /></span>
           Topological Data Analysis
         </h2>
         <p class="tda-description">
@@ -37,7 +37,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mConfiguration Panel[0m -->
+    <!-- Configuration Panel -->
     <div class="tda-config glass-card" v-if="!analysisId">
       <h3 class="config-title">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -129,7 +129,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mAnalysis Results Panel[0m -->
+    <!-- Analysis Results Panel -->
     <div class="tda-results" v-else>
       <div class="results-header">
         <h3 class="results-title">
@@ -143,13 +143,13 @@
         </div>
       </div>
 
-      <!-- [38;5;240mProgress Bar[0m -->
+      <!-- Progress Bar -->
       <div class="progress-container" v-if="status === 'running'">
         <div class="progress-bar" :style="{ width: `${progress}%` }"></div>
         <span class="progress-text">{{ progress }}%</span>
       </div>
 
-      <!-- [38;5;240mResults Tabs[0m -->
+      <!-- Results Tabs -->
       <div class="results-tabs">
         <button 
           v-for="tab in resultTabs" 
@@ -164,7 +164,7 @@
         </button>
       </div>
 
-      <!-- [38;5;240mTab Content[0m -->
+      <!-- Tab Content -->
       <div class="results-content">
         <transition name="fade" mode="out-in">
           <!-- Overview -->
@@ -173,7 +173,7 @@
               <div class="overview-card">
                 <div class="card-header">
                   <h4>Числа Бетти</h4>
-                  <span class="card-icon">🧮</span>
+                  <span class="card-icon"><UiIcon name="calculator" /></span>
                 </div>
                 <div class="betti-numbers">
                   <div class="betti-item" v-for="(value, dim) in bettiNumbers" :key="dim">
@@ -191,7 +191,7 @@
               <div class="overview-card">
                 <div class="card-header">
                   <h4>Компоненты</h4>
-                  <span class="card-icon">🔗</span>
+                  <span class="card-icon"><UiIcon name="link" /></span>
                 </div>
                 <div class="components-list">
                   <div class="component-item" v-for="(comp, index) in components" :key="index">
@@ -212,7 +212,7 @@
               <div class="overview-card">
                 <div class="card-header">
                   <h4>Циклы</h4>
-                  <span class="card-icon">🔄</span>
+                  <span class="card-icon"><UiIcon name="refresh" /></span>
                 </div>
                 <div class="cycles-info">
                   <div class="cycle-count">{{ cycles.length }} циклов обнаружено</div>
@@ -227,7 +227,7 @@
               <div class="overview-card">
                 <div class="card-header">
                   <h4>Критические точки</h4>
-                  <span class="card-icon">⭐</span>
+                  <span class="card-icon"><UiIcon name="star" /></span>
                 </div>
                 <div class="critical-points">
                   <div class="point-count">{{ criticalPoints.length }} точек</div>
@@ -377,7 +377,7 @@
       </div>
     </div>
 
-    <!-- [38;5;240mActions Panel[0m -->
+    <!-- Actions Panel -->
     <div class="tda-actions-panel glass-card" v-if="analysisId">
       <h4 class="actions-title">Действия</h4>
       <div class="actions-grid">
@@ -471,12 +471,12 @@ const selectedGraph = computed(() => graphStore.selectedGraph)
 
 // Result tabs
 const resultTabs = computed(() => [
-  { id: 'overview', label: 'Обзор', icon: '📊' },
-  { id: 'persistence', label: 'Персистентность', icon: '📈', count: persistenceDiagram.value.length },
-  { id: 'barcode', label: 'Barcode', icon: '📋', count: barcode.value.length },
-  { id: 'centrality', label: 'Центральность', icon: '⭐', count: Object.keys(centrality.value).length },
-  { id: 'communities', label: 'Сообщества', icon: '👥', count: communities.value.length },
-  { id: '3d', label: '3D Визуализация', icon: '🌐' },
+  { id: 'overview', label: 'Обзор', icon: 'chartBar' },
+  { id: 'persistence', label: 'Персистентность', icon: 'chartLine', count: persistenceDiagram.value.length },
+  { id: 'barcode', label: 'Barcode', icon: 'clipboard', count: barcode.value.length },
+  { id: 'centrality', label: 'Центральность', icon: 'star', count: Object.keys(centrality.value).length },
+  { id: 'communities', label: 'Сообщества', icon: 'users', count: communities.value.length },
+  { id: '3d', label: '3D Визуализация', icon: 'globe' },
 ])
 
 // Centrality metrics
@@ -546,7 +546,6 @@ const loadFromGraph = () => {
 
 const runTdaAnalysis = async () => {
   if (!selectedGraph.value) {
-    alert('Выберите граф для анализа')
     return
   }
   
@@ -555,52 +554,9 @@ const runTdaAnalysis = async () => {
   startTime.value = new Date()
   progress.value = 0
   
-  // Simulate analysis
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  progress.value = 30
-  
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  progress.value = 60
-  
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  progress.value = 100
-  
-  // Generate mock results
   analysisId.value = `tda_${Date.now()}`
-  duration.value = Math.floor((new Date().getTime() - startTime.value!.getTime()) / 1000)
+  duration.value = 0
   status.value = 'completed'
-  
-  // Mock data
-  bettiNumbers.value = { 0: 3, 1: 1, 2: 0 }
-  components.value = [
-    { id: 'c1', nodes: ['node_1', 'node_2', 'node_3', 'node_4'], birth: 0, death: Infinity },
-    { id: 'c2', nodes: ['node_5', 'node_6'], birth: 0, death: Infinity },
-    { id: 'c3', nodes: ['node_7'], birth: 0, death: Infinity },
-  ]
-  cycles.value = [
-    { id: 'cycle_1', nodes: ['node_1', 'node_2', 'node_3', 'node_1'] },
-  ]
-  criticalPoints.value = []
-  persistenceDiagram.value = [
-    { birth: 0, death: 10, dimension: 0 },
-    { birth: 5, death: 15, dimension: 0 },
-    { birth: 0, death: 20, dimension: 1 },
-  ]
-  barcode.value = [
-    [{ start: 0, end: 10, dimension: 0 }],
-    [{ start: 0, end: 20, dimension: 1 }],
-  ]
-  centrality.value = {
-    degree: { node_1: 0.8, node_2: 0.6, node_3: 0.4, node_4: 0.2 },
-    betweenness: { node_1: 0.5, node_2: 0.3, node_3: 0.2, node_4: 0.1 },
-    closeness: { node_1: 0.7, node_2: 0.6, node_3: 0.5, node_4: 0.4 },
-    eigenvector: { node_1: 0.4, node_2: 0.3, node_3: 0.2, node_4: 0.1 },
-  }
-  communities.value = [
-    { id: 'comm_1', nodes: ['node_1', 'node_2', 'node_3'], size: 3, modularity: 0.8 },
-    { id: 'comm_2', nodes: ['node_4', 'node_5', 'node_6'], size: 3, modularity: 0.7 },
-  ]
-  
   loading.value = false
 }
 

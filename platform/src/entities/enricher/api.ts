@@ -3,14 +3,17 @@ import { http } from '@/shared/api'
 import type { Enricher, LaunchResult } from '@/shared/api/types'
 
 export const enricherApi = {
-  list(category?: string): Promise<Enricher[]> {
+  list(category?: string): Promise<{ enrichers: Enricher[] }> {
     const q = category && category.toLowerCase() !== 'undefined' ? `?category=${encodeURIComponent(category)}` : ''
     return http(`/enrichers${q}`)
   },
-  launch(enricherName: string, nodeIds: string[], sketchId: string): Promise<LaunchResult> {
-    return http(`/enrichers/${enricherName}/launch`, {
+  run(enricherName: string, investigationId: string, nodeIds: string[], config?: Record<string, unknown>): Promise<LaunchResult> {
+    return http(`/enrichers/${enricherName}/run`, {
       method: 'POST',
-      body: JSON.stringify({ node_ids: nodeIds, sketch_id: sketchId }),
+      body: JSON.stringify({ investigation_id: investigationId, node_ids: nodeIds, config }),
     })
+  },
+  getRunStatus(runId: string): Promise<LaunchResult> {
+    return http(`/enrichers/runs/${runId}`)
   },
 }
